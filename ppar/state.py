@@ -39,7 +39,11 @@ class state():
 		momentum uncertainty from the target and
 		the experimental momentum distribution.'''
 
+		#In the future store this information in params maybe?
 		boost = True if self.ppar_exp.__class__.__name__ == 'ppar_NSCL' else False
+
+		if boost:
+			kwargs['kinematics'] = self.ppar_exp.kin_reac
 
 		#self.ppar_theo = convolve_theo(self.ppar_theo,self.ppar_exp.p_range,
 		#				self.ppar_exp.fit_res_unreac,self.ppar_exp.kin_reac,

@@ -86,7 +86,7 @@ def convolve_theo(ppar_theo,boost,p_range,fit_res,params,**kwargs):
 	p				= ppar_theo['orig']['x_centers']
 	
 	if boost:
-		p *= kinematics['after']['gamma']
+		p *= kwargs['kinematics']['after']['gamma']
 	
 	p_sized 			= np.linspace(2*p[0],2*p[-1],2*len(p)-1)
 
@@ -111,9 +111,9 @@ def convolve_theo(ppar_theo,boost,p_range,fit_res,params,**kwargs):
 	elif len(fit_res.x) == 4:
 		val_unreacted	= right(p_sized+fit_res.x[-2],*fit_res.x)
 	elif len(fit_res.x) == 7:
-		val_unreacted	= piecewise(p_sized+fit_res.x[-2],False,*fit_res.x)
+		val_unreacted	= piecewise(p_sized+fit_res.x[-2],False,fit_res.x)
 	else:
-		val_unreacted	= piecewise(p_sized+fit_res.x[-2],True,*fit_res.x)
+		val_unreacted	= piecewise(p_sized+fit_res.x[-2],True,fit_res.x)
 
 	#try:
 	#	val_unreacted 		= kwargs['fit_val']
