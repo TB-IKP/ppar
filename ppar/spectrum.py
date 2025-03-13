@@ -1,11 +1,31 @@
+#  SPDX-License-Identifier: GPL-3.0+
+#
+# Copyright © 2025 T. Beck.
+#
+# This file is part of ppar.
+#
+# ppar is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# ppar is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with ppar.  If not, see <http://www.gnu.org/licenses/>.
+
 '''Operations on 1d spectra and fit'''
+
+from copy import deepcopy
 
 import re
 import uproot
 
 import numpy as np
 
-from copy import deepcopy
 from scipy.optimize import minimize
 #from scipy.stats import norm
 
@@ -38,7 +58,7 @@ def load_file(file_name,hist_name,**kwargs):
 				   'x_centers':	xaxis.centers(),
 				   'values':	values,
 				  }
-		
+
 		try:
 
 			spec['mc_values']	= np.array([np.random.poisson(i,int(kwargs['mc_num'])) for i in values])
@@ -46,7 +66,7 @@ def load_file(file_name,hist_name,**kwargs):
 		except KeyError:
 
 			pass
-		
+
 		return spec
 
 def prepare_spec(file_name,hist_name,kinematics,beam,product):

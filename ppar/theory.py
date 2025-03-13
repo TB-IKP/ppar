@@ -1,3 +1,22 @@
+#  SPDX-License-Identifier: GPL-3.0+
+#
+# Copyright © 2025 T. Beck.
+#
+# This file is part of ppar.
+#
+# ppar is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# ppar is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with ppar.  If not, see <http://www.gnu.org/licenses/>.
+
 '''Treatment of theoretical momentum distributions'''
 
 import numpy as np
@@ -27,45 +46,11 @@ def load_theo(file_name):
 
 	return data
 
-#def prepare_theo(file_name,kinematics):
-	'''Load theoretical momentum distribution.'''
-
-#	data = {}
-
-	#Load data
-#	theo 		= load_theo(file_name)
-
-#	data['orig'] 	= {'x_centers':	theo['x_centers'],#*1e-3,
-#			   'values':	theo['values'],
-#			   'interpol':	interp1d(theo['x_centers'],theo['values'],
-#			   			kind='cubic'),
-#			   }
-
-	#Move it to the correct momentum
-	#x_centers 	= theo['x_centers'] + kinematics['after']['p']
-
-	#Boost it to the lab frame
-	#x_centers      *= kinematics['after']['gamma']
-
-	#Move it back
-	#x_centers      -= kinematics['after']['p']
-
-	#Convert momentum to GeV/c
-	#x_centers      *= 1e-3
-
-	#data['boost'] 	= {'x_centers':	x_centers,
-	#		   'values':	theo['values'],
-	#		   'interpol':	interp1d(x_centers,theo['values'],
-	#		   			kind='cubic'),
-	#		   }
-
-#	return data
-
 #---------------------------------------------------------------------------------------#
 #		Convolve theoretical momentum distribution
 #---------------------------------------------------------------------------------------#
 
-def filter(x,limits):
+def filter_p(x,limits):
 	'''Create a mask (0/1) for momenta based on Atima calculations.'''
 
 	mask = np.where((x >= limits[0])*(x <= limits[1]),
@@ -84,19 +69,19 @@ def convolve_theo(ppar_theo,boost,p_range,fit_res,params,**kwargs):
 	#values 		= ppar_theo['boost']['values']
 
 	p				= ppar_theo['orig']['x_centers']
-	
+
 	if boost:
 		p *= kwargs['kinematics']['after']['gamma']
-	
+
 	p_sized 			= np.linspace(2*p[0],2*p[-1],2*len(p)-1)
 
 	values 				= ppar_theo['orig']['values']
 
 	#include effect of reaction position
 	#p_filter 			= filter(p,p_range-kinematics['after']['p'])
-	p_filter 			= filter(p_sized,p_range)
+	p_filtered 			= filter_p(p_sized,p_range)
 
-	values_target 			= np.convolve(values,p_filter,mode='valid')
+	values_target 			= np.convolve(values,p_filtered,mode='valid')
 
 	ppar_theo['target'] 		= {'x_centers':	p,#+kinematics['after']['p'],
 					   'values':	values_target,
@@ -118,7 +103,7 @@ def convolve_theo(ppar_theo,boost,p_range,fit_res,params,**kwargs):
 	#try:
 	#	val_unreacted 		= kwargs['fit_val']
 	#except KeyError:
-		
+
 	#	if len(fit_res.x) == 4:
 	#		val_unreacted	= right(p_sized+fit_res.x[-2],*fit_res.x)
 	#	else:
@@ -131,10 +116,10 @@ def convolve_theo(ppar_theo,boost,p_range,fit_res,params,**kwargs):
 					   'interpol':	interp1d(p,values_tail,
 					   			kind='cubic'),
 					   }
- 
+
 	#include shape of unreacted momentum distribution (p_par-p_par,0)
 	#and effect of reaction position
-	values_tail_target 		= np.convolve(values_tail,p_filter,mode='valid')
+	values_tail_target 		= np.convolve(values_tail,p_filtered,mode='valid')
 
 	ppar_theo['tail_target'] 	= {'x_centers':	p,#+kinematics['after']['p'],
 					   'values':	values_tail_target,

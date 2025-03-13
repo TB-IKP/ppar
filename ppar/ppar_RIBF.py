@@ -1,3 +1,22 @@
+#  SPDX-License-Identifier: GPL-3.0+
+#
+# Copyright © 2025 T. Beck.
+#
+# This file is part of ppar.
+#
+# ppar is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# ppar is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with ppar.  If not, see <http://www.gnu.org/licenses/>.
+
 '''ppar class definition for RIBF data'''
 
 from os import path
@@ -5,11 +24,11 @@ from os import path
 import numpy as np
 
 from .spectrum import load_file,rebin_spec,fit_spec#,eval_spec
-from .plots import plot_ppar,plot_stop
+from .plots import plot_ppar#,plot_stop
 #from .kinematics import kinematics_reaction,stopping_target_fw,momentum_range_fw
-from .kinematics import stopping_target#,momentum_range
+#from .kinematics import stopping_target#,momentum_range
 from .utils import mg_cm2_to_um,atomic_mass_to_ion_mass
-from .messages import header_message,start_message,nucl_message,kinematics_message
+from .messages import start_message,nucl_message#,header_message,kinematics_message
 
 #---------------------------------------------------------------------------------------#
 #	RIBF:	ppar class
@@ -268,7 +287,3 @@ class ppar_RIBF():
 	#		raise ValueError(f'file {file} does not exist!')
 
 	#	return load_file(file,hist,mc_num=mc_num)
-
-
-
-

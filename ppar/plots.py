@@ -1,3 +1,22 @@
+#  SPDX-License-Identifier: GPL-3.0+
+#
+# Copyright © 2025 T. Beck.
+#
+# This file is part of ppar.
+#
+# ppar is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# ppar is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with ppar.  If not, see <http://www.gnu.org/licenses/>.
+
 '''Plots for ppar'''
 
 import numpy as np
@@ -106,47 +125,34 @@ def plot_ppar(self,spec,plot_fit,log,rescale,reac,**kwargs):
 
 		if len(fit_res) == 3:
 
-			ax.plot(x_val_plot,
-				gaussian(x_val_plot,*fit_res),
-				linestyle='-',color='forestgreen',label='Fit spectrum')
+			y_val_plot 	= gaussian(x_val_plot,*fit_res)
 
 			#shifted fit (centered at p-p0=0 for NSCL or p=0 for RIBF)
-			ax.plot(x_val_plot,
-				gaussian(x_val_plot+fit_res[-2],*fit_res),
-				linestyle='--',color='forestgreen',label='Fit shifted')
+			y_val_shift 	= gaussian(x_val_plot+fit_res[-2],*fit_res)
 
 		elif len(fit_res) == 4:
 
-			ax.plot(x_val_plot,
-				right(x_val_plot,*fit_res),
-				linestyle='-',color='forestgreen',label='Fit spectrum')
+			y_val_plot 	= right(x_val_plot,*fit_res)
 
 			#shifted fit (centered at p-p0=0 for NSCL or p=0 for RIBF)
-			ax.plot(x_val_plot,
-				right(x_val_plot+fit_res[-2],*fit_res),
-				linestyle='--',color='forestgreen',label='Fit shifted')
+			y_val_shift 	= right(x_val_plot+fit_res[-2],*fit_res)
 
 		elif len(fit_res) == 7:
 
-			ax.plot(x_val_plot,
-				piecewise(x_val_plot,False,fit_res),
-				linestyle='-',color='forestgreen',label='Fit spectrum')
+			y_val_plot 	= piecewise(x_val_plot,False,fit_res)
 
 			#shifted fit (centered at p-p0=0 for NSCL or p=0 for RIBF)
-			ax.plot(x_val_plot,
-				piecewise(x_val_plot+fit_res[-2],False,fit_res),
-				linestyle='--',color='forestgreen',label='Fit shifted')
+			y_val_shift 	= piecewise(x_val_plot+fit_res[-2],False,fit_res)
 
 		elif len(fit_res) == 10:
 
-			ax.plot(x_val_plot,
-				piecewise(x_val_plot,True,fit_res),
-				linestyle='-',color='forestgreen',label='Fit spectrum')
+			y_val_plot 	= piecewise(x_val_plot,True,fit_res)
 
 			#shifted fit (centered at p-p0=0 for NSCL or p=0 for RIBF)
-			ax.plot(x_val_plot,
-				piecewise(x_val_plot+fit_res[-2],True,fit_res),
-				linestyle='--',color='forestgreen',label='Fit shifted')
+			y_val_shift 	= piecewise(x_val_plot+fit_res[-2],True,fit_res)
+
+		ax.plot(x_val_plot,y_val_plot,linestyle='-',color='forestgreen',label='Fit spectrum')
+		ax.plot(x_val_plot,y_val_shift,linestyle='--',color='forestgreen',label='Fit shifted')
 
 		#fit range
 		ax.axvspan(fit_range[0]*scale,fit_range[1]*scale,
@@ -338,12 +344,12 @@ def plot_mode(self,spec,plot_theory,log,rescale,show_region,**kwargs):
 
 		x_val_plot 	= self.ppar_theo['tail_target']['x_centers']
 		y_val_plot 	= self.ppar_theo['tail_target']['interpol'](x_val_plot)
-	
+
 		#shift theory horizontally only if fitted
 		if len(self.fit_res) > 1:
 
 			x_val_plot = x_val_plot + self.fit_res[1]
-		
+
 		#apply scaling factor for agreement with experimental data
 		y_val_plot 	= y_val_plot*self.fit_res[0]#*self.params['rebin']
 

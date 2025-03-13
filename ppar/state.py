@@ -1,3 +1,22 @@
+#  SPDX-License-Identifier: GPL-3.0+
+#
+# Copyright © 2025 T. Beck.
+#
+# This file is part of ppar.
+#
+# ppar is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# ppar is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with ppar.  If not, see <http://www.gnu.org/licenses/>.
+
 '''state class definition'''
 
 from os import path
@@ -40,7 +59,7 @@ class state():
 		the experimental momentum distribution.'''
 
 		#In the future store this information in params maybe?
-		boost = True if self.ppar_exp.__class__.__name__ == 'ppar_NSCL' else False
+		boost = self.ppar_exp.__class__.__name__ == 'ppar_NSCL'
 
 		if boost:
 			kwargs['kinematics'] = self.ppar_exp.kin_reac
@@ -88,7 +107,7 @@ class state():
 		#shift spectrum horizontally
 		try:
 			spec_shifted	= shift_spec(spec,self.ppar_exp.fit_res_reac)
-		
+
 		except AttributeError:
 			pass
 
@@ -96,10 +115,10 @@ class state():
 
 		#if necessary, rebin spectrum
 		if rebin > 1:
-			
+
 			self.rebin 	= rebin_spec(spec_shifted,rebin)
 			self.rebin 	= eval_spec(self.rebin,threshold)
-		
+
 		else:
 			self.rebin 	= self.spec
 
