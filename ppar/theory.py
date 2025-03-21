@@ -28,23 +28,32 @@ from .spectrum import piecewise
 from .utils import gaussian,right
 
 #---------------------------------------------------------------------------------------#
+#		theo class
+#---------------------------------------------------------------------------------------#
+
+class theo():
+
+	def __init__(self,x,y):
+
+		self.centers 	= x
+		self.values 	= y
+
+		self.interpol 	= interp1d(x,y,
+					   kind='cubic',
+					   bounds_error=False,
+					   fill_value=(0,0)
+					   )
+
+#---------------------------------------------------------------------------------------#
 #		Load theoretical momentum distribution
 #---------------------------------------------------------------------------------------#
 
 def load_theo(file_name):
 	'''Load theoretical momentum distribution from file.'''
 
-	theo = np.loadtxt(file_name)
+	ppar_theo = np.loadtxt(file_name)
 
-	data = {}
-
-	data['orig'] = 	{'x_centers':	theo[:,0],
-			 'values':	theo[:,1],
-			 'interpol':	interp1d(theo[:,0],theo[:,1],
-			   			kind='cubic'),
-			}
-
-	return data
+	return theo(ppar_theo[:,0],ppar_theo[:,1])
 
 #---------------------------------------------------------------------------------------#
 #		Convolve theoretical momentum distribution
@@ -68,26 +77,21 @@ def convolve_theo(ppar_theo,boost,p_range,fit_res,params,**kwargs):
 	#x_centers 	= ppar_theo['boost']['x_centers']
 	#values 		= ppar_theo['boost']['values']
 
-	p				= ppar_theo['orig']['x_centers']
+	p				= ppar_theo['orig'].centers
 
 	if boost:
 		p *= kwargs['kinematics']['after']['gamma']
 
 	p_sized 			= np.linspace(2*p[0],2*p[-1],2*len(p)-1)
 
-	values 				= ppar_theo['orig']['values']
+	values 				= ppar_theo['orig'].values
 
 	#include effect of reaction position
-	#p_filter 			= filter(p,p_range-kinematics['after']['p'])
 	p_filtered 			= filter_p(p_sized,p_range)
 
 	values_target 			= np.convolve(values,p_filtered,mode='valid')
 
-	ppar_theo['target'] 		= {'x_centers':	p,#+kinematics['after']['p'],
-					   'values':	values_target,
-					   'interpol':	interp1d(p,values_target,
-					   			kind='cubic'),
-					   }
+	ppar_theo['target'] 		= theo(p,values_target)
 
 	#include shape of unreacted momentum distribution (p_par-p_par,0)
 	#with the correction which centers it around 0
@@ -100,34 +104,15 @@ def convolve_theo(ppar_theo,boost,p_range,fit_res,params,**kwargs):
 	else:
 		val_unreacted	= piecewise(p_sized+fit_res.x[-2],True,fit_res.x)
 
-	#try:
-	#	val_unreacted 		= kwargs['fit_val']
-	#except KeyError:
-
-	#	if len(fit_res.x) == 4:
-	#		val_unreacted	= right(p_sized+fit_res.x[-2],*fit_res.x)
-	#	else:
-	#		val_unreacted 	= piecewise(p_sized+fit_res.x[-2],params['gauss'],fit_res.x)
-
 	values_tail 			= np.convolve(values,val_unreacted,mode='valid')
 
-	ppar_theo['tail'] 		= {'x_centers':	p,#+kinematics['after']['p'],
-					   'values':	values_tail,
-					   'interpol':	interp1d(p,values_tail,
-					   			kind='cubic'),
-					   }
+	ppar_theo['tail'] 		= theo(p,values_tail)
 
 	#include shape of unreacted momentum distribution (p_par-p_par,0)
 	#and effect of reaction position
 	values_tail_target 		= np.convolve(values_tail,p_filtered,mode='valid')
 
-	ppar_theo['tail_target'] 	= {'x_centers':	p,#+kinematics['after']['p'],
-					   'values':	values_tail_target,
-					   'interpol':	interp1d(p,values_tail_target,
-					   			kind='cubic',
-					   			bounds_error=False,
-					   			fill_value=(0,0)),
-					   }
+	ppar_theo['tail_target'] 	= theo(p,values_tail_target)
 
 	return ppar_theo
 
@@ -139,7 +124,7 @@ def shift_scale_theo(params,x,y,scale,ppar_theo):
 	'''Fit function for horizontal shift of convolved momentum distributions.'''
 
 	x_shift 	= x - params[0]
-	fit 		= scale*ppar_theo['interpol'](x_shift)
+	fit 		= scale*ppar_theo.interpol(x_shift)
 
 	#x_shift 	= x - params[1]
 	#fit 		= params[0]*ppar_theo(x_shift)
@@ -153,15 +138,15 @@ def scale_theo(spec,ppar_theo):
 	vertically using the maximum bin content.'''
 
 	#for y take the modes of the MC values
-	x 	= spec['x_centers']
-	y 	= spec['mode']
+	x 	= spec.centers
+	y 	= spec.mode
 
 	#position of maximum y value for scaling
 	x_max 	= x[np.argmax(y)]
 	y_max 	= np.max(y)
 
 	#scale theory to experiment
-	scale 	= y_max/np.max(ppar_theo['values'])
+	scale 	= y_max/np.max(ppar_theo.values)
 
 	return np.array([scale])
 
@@ -171,8 +156,8 @@ def fit_theo(spec,ppar_theo,fit_range):
 	scale 	= scale_theo(spec,ppar_theo)[0]
 
 	#for y take the modes of the MC values
-	x 	= spec['x_centers']
-	y 	= spec['mode']
+	x 	= spec.centers
+	y 	= spec.mode
 
 	#position of maximum y value for scaling
 	x_max 	= x[np.argmax(y)]
@@ -184,7 +169,7 @@ def fit_theo(spec,ppar_theo,fit_range):
 	mask  	= (x >= fit_range[0])*(x <= fit_range[1])
 
 	#cut to range
-	x_val 	= spec['x_centers'][mask]
+	x_val 	= spec.centers[mask]
 	y_val 	= y[mask]
 
 	res_fit_min = minimize(shift_scale_theo,

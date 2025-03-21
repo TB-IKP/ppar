@@ -37,20 +37,20 @@ class state():
 	def __init__(self,ppar_exp,ppar_theo):
 		'''Create state instance.'''
 
-		self.params = {}
+		self.params 	= {}
 
 		if not isinstance(ppar_exp,object) or ppar_exp.__class__.__name__ not in ['ppar_NSCL','ppar_RIBF']:
 
 			raise ValueError(f'ppar_exp must be an instance of the class ppar not {type(ppar_exp)}!')
 
-		self.ppar_exp = ppar_exp
+		self.ppar_exp 	= ppar_exp
 
 		#ppar_calc
 		if not path.isfile(ppar_theo):
 
 			raise ValueError(f'file {ppar_theo} does not exist!')
 
-		self.ppar_theo = load_theo(ppar_theo)
+		self.ppar_theo 	= {'orig':load_theo(ppar_theo)}
 		#self.ppar_theo = prepare_theo(ppar_theo,ppar_exp.kin_reac)
 
 	def convolve_theory(self,**kwargs):
@@ -64,10 +64,7 @@ class state():
 		if boost:
 			kwargs['kinematics'] = self.ppar_exp.kin_reac
 
-		#self.ppar_theo = convolve_theo(self.ppar_theo,self.ppar_exp.p_range,
-		#				self.ppar_exp.fit_res_unreac,self.ppar_exp.kin_reac,
-		#				self.ppar_exp.params,**kwargs)
-		self.ppar_theo = convolve_theo(self.ppar_theo,
+		self.ppar_theo 	= convolve_theo(self.ppar_theo,
 						boost,
 						self.ppar_exp.p_range,
 						self.ppar_exp.fit_res_unreac,
@@ -88,9 +85,9 @@ class state():
 		if reacted beam has been fitted before.'''
 
 		#spec
-		if not isinstance(spec,dict):
+		if not isinstance(spec,object) or spec.__class__.__name__ not in ['spectrum']:
 
-			raise ValueError(f'spec {spec} must be dict with keys x_centers and values!')
+			raise ValueError(f'spec {spec} must be spectrum object!')
 
 		#threshold below which bins are ignored
 		if not isinstance(threshold,int):
@@ -106,21 +103,16 @@ class state():
 
 		#shift spectrum horizontally
 		try:
-			spec_shifted	= shift_spec(spec,self.ppar_exp.fit_res_reac)
+			self.spec	= shift_spec(spec,self.ppar_exp.fit_res_reac)
 
 		except AttributeError:
-			pass
-
-		self.spec  		= eval_spec(spec_shifted,threshold)
+			self.spec	= spec
 
 		#if necessary, rebin spectrum
 		if rebin > 1:
+			self.spec.rebin(rebin,overwrite=True)
 
-			self.rebin 	= rebin_spec(spec_shifted,rebin)
-			self.rebin 	= eval_spec(self.rebin,threshold)
-
-		else:
-			self.rebin 	= self.spec
+		self.spec.eval(threshold)
 
 	def fit_theory(self,fit_range):
 		'''Fit convolved theoretical momentum distribution
@@ -134,7 +126,7 @@ class state():
 		else:
 			raise ValueError('fit_range must be a list of length two!')
 
-		self.fit_res = fit_theo(self.rebin,self.ppar_theo['tail_target'],self.fit_range)
+		self.fit_res = fit_theo(self.spec,self.ppar_theo['tail_target'],self.fit_range)
 
 		return self.fit_res
 
@@ -142,20 +134,11 @@ class state():
 		'''Scale the convolved theoretical momentum distribution
 		vertically to experimental data using the maximum bin content.'''
 
-		self.fit_res = scale_theo(self.rebin,self.ppar_theo['tail_target'])
+		self.fit_res = scale_theo(self.spec,self.ppar_theo['tail_target'])
 
 		return self.fit_res
 
-	def plot_hist(self,rebin=True,plot_theory=True,log=False,rescale=False,show_region=True,**kwargs):
+	def plot_hist(self,plot_theory=True,log=False,rescale=False,show_region=True,**kwargs):
 		'''Plot the exclusive experimental momentum distribution with fit if available.'''
-
-		#rebin
-		if not isinstance(rebin,bool):
-
-			raise ValueError(f'rebin must be bool not {type(rebin)}!')
-
-		if rebin:
-
-			return plot_mode(self,self.rebin,plot_theory,log,rescale,show_region,**kwargs)
 
 		return plot_mode(self,self.spec,plot_theory,log,rescale,show_region,**kwargs)

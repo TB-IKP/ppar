@@ -23,12 +23,10 @@ from os import path
 
 import numpy as np
 
-from .spectrum import load_file,rebin_spec,fit_spec#,eval_spec
-from .plots import plot_ppar#,plot_stop
-#from .kinematics import kinematics_reaction,stopping_target_fw,momentum_range_fw
-#from .kinematics import stopping_target#,momentum_range
+from .spectrum import spectrum,fit_spec
+from .plots import plot_ppar
 from .utils import mg_cm2_to_um,atomic_mass_to_ion_mass
-from .messages import start_message,nucl_message#,header_message,kinematics_message
+from .messages import start_message,nucl_message
 
 #---------------------------------------------------------------------------------------#
 #	RIBF:	ppar class
@@ -147,14 +145,10 @@ class ppar_RIBF():
 
 			raise ValueError(f'rebin must be int not {type(rebin)}!')
 
-		#self.spec_unreac	= prepare_spec(file,histogram,self.kin_reac,
-			#					self.beam,self.product)
-		self.spec_unreac  	= load_file(file,histogram)
-		self.rebin_unreac 	= rebin_spec(self.spec_unreac,rebin)
-
-		#add identifiers
-		#self.spec_unreac['reac']	= False
-		#self.rebin_unreac['reac']	= False
+		self.spec_unreac  	= spectrum(file,histogram)
+		
+		if rebin > 1:
+			self.spec_unreac.rebin(rebin,overwrite=True)
 
 	def load_reacted(self,file,histogram,rebin=1):
 		'''Load the experimental histogram of reaction setting and extract data.'''
@@ -169,14 +163,10 @@ class ppar_RIBF():
 
 			raise ValueError(f'rebin must be int not {type(rebin)}!')
 
-		#self.spec_reac	= prepare_spec(file,histogram,self.kin_reac,
-			#					self.beam,self.product)
-		self.spec_reac  	= load_file(file,histogram)
-		self.rebin_reac 	= rebin_spec(self.spec_reac,rebin)
-
-		#add identifiers
-		#self.spec_unreac['reac']	= True
-		#self.rebin_unreac['reac']	= True
+		self.spec_reac  	= spectrum(file,histogram)
+		
+		if rebin > 1:
+			self.spec_reac.rebin(rebin,overwrite=True)
 
 	def fit_unreacted(self,fit_range,x0):
 		'''Fit the experimental histogram to extract its functional shape.'''
@@ -201,7 +191,8 @@ class ppar_RIBF():
 				and ten for a combination of exponential and Gaussian tail!')
 
 		#self.fit_res_unreac 		= fit_peak(self.rebin_unreac,self.fit_range_unreac,x0)
-		self.fit_res_unreac 		= fit_spec(self.rebin_unreac,self.fit_range_unreac,x0)
+		#self.fit_res_unreac 		= fit_spec(self.rebin_unreac,self.fit_range_unreac,x0)
+		self.fit_res_unreac 		= fit_spec(self.spec_unreac,self.fit_range_unreac,x0)
 
 		#correct kinematics unreacted run
 		#self.kin_unreac['after'] 	= correct_kinematics(self.kin_unreac['after']['p'],
@@ -232,7 +223,8 @@ class ppar_RIBF():
 				and ten for a combination of exponential and Gaussian tail!')
 
 		#self.fit_res_reac 		= fit_peak(self.rebin_reac,self.fit_range_reac,x0)
-		self.fit_res_reac 		= fit_spec(self.rebin_reac,self.fit_range_reac,x0)
+		#self.fit_res_reac 		= fit_spec(self.rebin_reac,self.fit_range_reac,x0)
+		self.fit_res_reac 		= fit_spec(self.spec_reac,self.fit_range_reac,x0)
 
 		#correct kinematics unreacted run
 		#self.kin_reac['after'] 	= correct_kinematics(self.kin_reac['after']['p'],
@@ -253,10 +245,6 @@ class ppar_RIBF():
 
 			raise ValueError(f'log must be bool not {type(log)}!')
 
-		if rebin:
-
-			return plot_ppar(self,self.rebin_unreac,plot_fit,log,rescale,False,**kwargs)
-
 		return plot_ppar(self,self.spec_unreac,plot_fit,log,rescale,False,**kwargs)
 
 	def plot_reacted(self,rebin=True,plot_fit=True,log=False,rescale=False,**kwargs):
@@ -271,9 +259,5 @@ class ppar_RIBF():
 		if not isinstance(log,bool):
 
 			raise ValueError(f'log must be bool not {type(log)}!')
-
-		if rebin:
-
-			return plot_ppar(self,self.rebin_reac,plot_fit,log,rescale,True,**kwargs)
 
 		return plot_ppar(self,self.spec_reac,plot_fit,log,rescale,True,**kwargs)

@@ -30,7 +30,52 @@ from numpy.random import poisson
 from scipy.optimize import minimize
 #from scipy.stats import norm
 
-from .utils import gaussian,left,right,piecewise,mode,sc_interval
+from .utils import gaussian,left,right,piecewise,calc_mode,calc_sc
+
+#---------------------------------------------------------------------------------------#
+#		spectrum class
+#---------------------------------------------------------------------------------------#
+
+class spectrum():
+	'''spectrum class'''
+
+	def __init__(self,file_name,hist_name,**kwargs):
+
+		self.file_name 	= file_name
+		self.hist_name 	= hist_name
+
+		self.centers,self.edges,self.values = \
+			load_file(file_name,hist_name,**kwargs)
+
+		self.ndim 	= self.values.ndim
+
+	def rebin(self,rebin,overwrite=True):
+
+		if overwrite:
+			self.centers,self.edges,self.values = \
+				rebin_spec(self.centers,self.edges,self.values,rebin)
+		else:
+			self.centers_rebin,self.edges_rebin,self.values_rebin = \
+				rebin_spec(self.centers,self.edges,self.values,rebin)
+
+	def eval(self,threshold=0):
+
+		self.ind_nonzero,self.mode,self.sc_interval = \
+			eval_spec(self.centers,self.edges,self.values,threshold)
+
+	def copy(self):
+
+		_copy = deepcopy(self)
+
+		for attr in ['ind_nonzero','mode','sc_interval']:
+			
+			try:
+				delattr(_copy,attr)
+
+			except AttributeError:
+				continue
+
+		return _copy
 
 #---------------------------------------------------------------------------------------#
 #		Load data and isolate histogram data
@@ -54,20 +99,14 @@ def load_file(file_name,hist_name,**kwargs):
 		xaxis		= file[_hist_name].all_members['fXaxis']
 		values		= file[_hist_name].values()
 
-		spec		= {'x_edges':	xaxis.edges(),
-				   'x_centers':	xaxis.centers(),
-				   #'values':	values,
-				  }
-
 		try:
-			spec['values']	= np.array([poisson(i,int(kwargs['mc_num'])) \
+			values	= np.array([poisson(i,int(kwargs['mc_num'])) \
 						for i in values]).astype('float64')
 
 		except KeyError:
-			#pass
-			spec['values']	= values
+			pass
 
-		return spec
+		return xaxis.centers(),xaxis.edges(),values
 
 def prepare_spec(file_name,hist_name,kinematics,beam,product):
 	'''Obtain and prepare histogram data.'''
@@ -87,8 +126,8 @@ def shift_spec(spec,params):
 
 	spec_shifted = deepcopy(spec)
 
-	spec_shifted['x_centers'] -= params.x[-2]
-	spec_shifted['x_edges']   -= params.x[-2]
+	spec_shifted.centers -= params.x[-2]
+	spec_shifted.edges   -= params.x[-2]
 
 	return spec_shifted
 
@@ -96,7 +135,7 @@ def shift_spec(spec,params):
 #		Rebin histogram
 #---------------------------------------------------------------------------------------#
 
-def rebin_spec(spec,rebin):
+def rebin_spec(centers,edges,values,rebin):
 	'''Rebin histogram.'''
 
 	if not isinstance(rebin,int) or rebin < 0:
@@ -105,81 +144,56 @@ def rebin_spec(spec,rebin):
 
 	if rebin == 1:
 
-		return spec
+		return centers,edges,values
 
-	bins 	= len(spec['x_centers'])
+	bins 	= len(centers)
 
 	if bins % rebin:
 
 		raise ValueError(f'number of bins ({bins}) must be an integer multiple \n \
 				of the rebin factor {rebin}!')
 
-	#values
-	#values 	= np.sum(spec['values'].reshape(int(bins/rebin),rebin),axis=1)
+	if values.ndim == 1:
 
-	if spec['values'].ndim == 1:
+		_values 	= np.sum(values.reshape(int(bins/rebin),rebin),axis=1)
 
-		values 		= np.sum(spec['values'].reshape(int(bins/rebin),rebin),axis=1)
+	elif values.ndim == 2:
 
-	elif spec['values'].ndim == 2:
-
-		_,mc_num 	= spec['values'].shape
-		values 		= np.sum(spec['values'].reshape(int(bins/rebin),rebin,mc_num),axis=1)
+		_,mc_num 	= values.shape
+		_values 	= np.sum(values.reshape(int(bins/rebin),rebin,mc_num),axis=1)
 
 	else:
-		raise ValueError(f'dimension of values ({spec["values"].ndim}) must be one or two!')
+		raise ValueError(f'dimension of values ({values.ndim}) must be one or two!')
 
 	#edges and centers
-	centers		= spec['x_centers'] if rebin % 2 else spec['x_edges']
+	_centers	= centers if rebin % 2 else edges
 
-	spec_rebin	= {'x_edges':	spec['x_edges'][::rebin],
-			   'x_centers':	centers[int(rebin/2)::rebin],
-			   'values':	values,
-			  }
-
-	#mc_values
-	#try:
-		#mc_num		= len(spec['mc_values'])
-	#	_,mc_num	= spec['mc_values'].shape
-		#mc_values	= spec['mc_values'].reshape(mc_num,int(bins/rebin),rebin)
-	#	mc_values	= spec['mc_values'].reshape(int(bins/rebin),rebin,mc_num)
-		
-		#spec_rebin['mc_values'] = np.sum(mc_values,axis=2)
-	#	spec_rebin['mc_values'] = np.sum(mc_values,axis=1)
-
-	#except KeyError:
-	#	pass
-
-	return spec_rebin
+	return _centers[int(rebin/2)::rebin],edges[::rebin],_values
 
 #---------------------------------------------------------------------------------------#
 #		Evaluate histogram
 #---------------------------------------------------------------------------------------#
 
-def eval_spec(spec,threshold):
+def eval_spec(centers,edges,values,threshold):
 	'''Calculate mode and shortest coverage interval for each bin.'''
 
-	len_spec 		= len(spec['x_centers'])
+	len_spec 	= len(centers)
 
-	spec['ind_nonzero'] 	= []
-	spec['mode']		= np.zeros(len_spec)
-	spec['sc_interval'] 	= np.zeros((len_spec,2))
+	ind_nonzero 	= []
+	mode		= np.zeros(len_spec)
+	sc_interval 	= np.zeros((len_spec,2))
 
-	#values = spec['mc_values'] if 'mc_values' in spec.keys() else spec['values']
-	#mc_num = values.shape[1]
-
-	#for i,j in enumerate(values):
-	for i,j in enumerate(spec['values']):
+	for i,j in enumerate(values):
 
 		if not np.all(j==0) and np.mean(j) > threshold:
 		#if np.count_nonzero(j) > np.sqrt(mc_num) and np.mean(j) > threshold:
 
-			spec['ind_nonzero'].append(i)
+			ind_nonzero.append(i)
 
-			spec['mode'][i]        = mode(j)
-			spec['sc_interval'][i] = sc_interval(j)
+			mode[i]        = calc_mode(j)
+			sc_interval[i] = calc_sc(j)
 
-	return spec
+	return ind_nonzero,mode,sc_interval
 
 #---------------------------------------------------------------------------------------#
 #		Fit histogram
@@ -230,15 +244,14 @@ def gaussian_minimize(params,x,y):
 
 	return residuals
 
-#def fit_spec(spec,fit_range,x0,gauss):
 def fit_spec(spec,fit_range,x0):
 	'''Fit of experimental momentum distributions with low-momentum tail.'''
 
-	mask  	= (spec['x_centers'] >= fit_range[0])*\
-		  (spec['x_centers'] <= fit_range[1])
+	mask  	= (spec.centers >= fit_range[0])*\
+		  (spec.centers <= fit_range[1])
 
-	x_val 	= spec['x_centers'][mask]
-	y_val 	= spec['values'][mask]
+	x_val 	= spec.centers[mask]
+	y_val 	= spec.values[mask]
 
 	#opt_res_min 	= minimize(piecewise_minimize,
 	#			args=(x_val,y_val,gauss),

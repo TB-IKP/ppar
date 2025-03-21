@@ -55,10 +55,10 @@ def plot_hist(spec,log=False,rescale=False,**kwargs):
 	except KeyError:
 		label ='Experiment'
 
-	if spec['values'].ndim == 1:
+	if spec.values.ndim == 1:
 
-		ax.step(spec['x_centers']*scale,
-			spec['values'],
+		ax.step(spec.centers*scale,
+			spec.values,
 			where='mid',
 			color='black',
 			label=label,
@@ -66,10 +66,11 @@ def plot_hist(spec,log=False,rescale=False,**kwargs):
 			)
 
 	else:
-		_spec = eval_spec(spec,0)
+		if not hasattr(spec,'ind_nonzero'):
+			spec.eval(0)
 
-		ax.step(_spec['x_centers']*scale,
-			_spec['mode'],
+		ax.step(spec.centers*scale,
+			spec.mode,
 			where='mid',
 			color='black',
 			label=label,
@@ -77,9 +78,9 @@ def plot_hist(spec,log=False,rescale=False,**kwargs):
 			)
 
 		ax.fill_between(
-			_spec['x_centers'],
-			_spec['sc_interval'][:,0],
-			_spec['sc_interval'][:,1],
+			spec.centers,
+			spec.sc_interval[:,0],
+			spec.sc_interval[:,1],
 			step='mid',
 			color='grey',
 			alpha=0.5
@@ -247,7 +248,7 @@ def plot_stop(data,interpol,beam,product,**kwargs):
 			color=Dic_colors[key],
 			linestyle='--',
 			zorder=2,
-			label=f'Interpolation {name_nucl(nucl["name"])}',
+			label=f'Interpolation {name_nucl(nucl['name'])}',
 			)
 
 	#ax.set_xlabel('TKE (MeV)',fontsize=16)
@@ -271,7 +272,7 @@ def plot_stop(data,interpol,beam,product,**kwargs):
 #		Plot theoretical momentum distribution
 #---------------------------------------------------------------------------------------#
 
-def plot_theo(data,rescale,**kwargs):
+def plot_theo(ppar_theo,rescale,**kwargs):
 	'''Plot theoretical momentum distributions with convolutions if available.'''
 
 	#Convert p to GeV/c
@@ -280,27 +281,27 @@ def plot_theo(data,rescale,**kwargs):
 	fig,ax = plt.subplots(figsize=(10,4))
 	fig.subplots_adjust(bottom=0.2)
 
-	if 'tail_target' in data.keys():
+	if 'tail_target' in ppar_theo.keys():
 
-		ax.plot(data['orig']['x_centers']*scale,
-			#data['orig']['x_centers']+kinematics['after']['p'])*scale,
-			data['orig']['values']/np.sum(data['orig']['values']),
+		ax.plot(ppar_theo['orig'].centers*scale,
+			#data['orig'].centers+kinematics['after']['p'])*scale,
+			ppar_theo['orig'].values/np.sum(ppar_theo['orig'].values),
 			linestyle='-',
 			color='grey',
 			alpha=0.5,
 			label='Theory shifted'
 			)
 
-		ax.plot(data['tail']['x_centers']*scale,
-			data['tail']['values']/np.sum(data['tail']['values']),
+		ax.plot(ppar_theo['tail'].centers*scale,
+			ppar_theo['tail'].values/np.sum(ppar_theo['tail'].values),
 			linestyle='--',
 			color='grey',
 			alpha=0.5,
 			label='w/ unreacted'
 			)
 
-		ax.plot(data['tail_target']['x_centers']*scale,
-			data['tail_target']['values']/np.sum(data['tail_target']['values']),
+		ax.plot(ppar_theo['tail_target'].centers*scale,
+			ppar_theo['tail_target'].values/np.sum(ppar_theo['tail_target'].values),
 			linestyle='-',
 			color='black',
 			label='w/ unreacted \nand target'
@@ -310,8 +311,8 @@ def plot_theo(data,rescale,**kwargs):
 
 	else:
 
-		ax.plot(data['orig']['x_centers']*scale,
-			data['orig']['values']/np.sum(data['orig']['values']),
+		ax.plot(ppar_theo['orig'].centers*scale,
+			ppar_theo['orig'].values/np.sum(ppar_theo['orig'].values),
 			linestyle='-',
 			color='black',
 			label='Theory rest frame'
@@ -368,11 +369,11 @@ def plot_mode(self,spec,plot_theory,log,rescale,show_region,**kwargs):
 		# 	color='grey',alpha=0.5
 		# 	)
 
-	ind = spec['ind_nonzero']
-	err = np.abs(spec['sc_interval'][ind].T-spec['mode'][ind])
+	ind = spec.ind_nonzero
+	err = np.abs(spec.sc_interval[ind].T-spec.mode[ind])
 
-	ax.errorbar(spec['x_centers'][ind]*scale,
-		    spec['mode'][ind],
+	ax.errorbar(spec.centers[ind]*scale,
+		    spec.mode[ind],
 		    yerr=err,
 		    linestyle='',
 		    marker='x',
@@ -390,8 +391,8 @@ def plot_mode(self,spec,plot_theory,log,rescale,show_region,**kwargs):
 
 		#fit_range 	= self.fit_range
 
-		x_val_plot 	= self.ppar_theo['tail_target']['x_centers']
-		y_val_plot 	= self.ppar_theo['tail_target']['interpol'](x_val_plot)
+		x_val_plot 	= self.ppar_theo['tail_target'].centers
+		y_val_plot 	= self.ppar_theo['tail_target'].interpol(x_val_plot)
 
 		#shift theory horizontally only if fitted
 		if len(self.fit_res) > 1:

@@ -146,7 +146,7 @@ def name_nucl(nucl):
 #		Mode and shortest coverage interval
 #---------------------------------------------------------------------------------------#
 
-def mode(data):
+def calc_mode(data):
 	'''Mode of data.
 	Can be replaced with az.plots.plot_utils.calculate_point_estimate('mode',data)
 	but this does not use minimization.'''
@@ -161,7 +161,7 @@ def mode(data):
 
 	return minimum.x[0]
 
-def sc_interval(data):
+def calc_sc(data):
 	'''Shortest coverage interval of data.
 	Replace by arviz.hdi(data,hdi_prob=0.68268949) in the future.'''
 
