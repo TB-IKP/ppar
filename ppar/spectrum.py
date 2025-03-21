@@ -26,6 +26,7 @@ import uproot
 
 import numpy as np
 
+from numpy.random import poisson
 from scipy.optimize import minimize
 #from scipy.stats import norm
 
@@ -41,7 +42,7 @@ def load_file(file_name,hist_name,**kwargs):
 	with uproot.open(file_name) as file:
 
 		try:
-			hist_name 	= re.findall(hist_name,'|'.join(file.classnames().keys()))[0]
+			_hist_name 	= re.findall(hist_name,'|'.join(file.classnames().keys()))[0]
 
 		except IndexError:
 
@@ -50,22 +51,21 @@ def load_file(file_name,hist_name,**kwargs):
 			raise FileNotFoundError(f'histogram name {hist_name} not found \
 						in {hist_names}!')
 
-
-		xaxis		= file[hist_name].all_members['fXaxis']
-		values		= file[hist_name].values()
+		xaxis		= file[_hist_name].all_members['fXaxis']
+		values		= file[_hist_name].values()
 
 		spec		= {'x_edges':	xaxis.edges(),
 				   'x_centers':	xaxis.centers(),
-				   'values':	values,
+				   #'values':	values,
 				  }
 
 		try:
-
-			spec['mc_values']	= np.array([np.random.poisson(i,int(kwargs['mc_num'])) for i in values])
+			spec['values']	= np.array([poisson(i,int(kwargs['mc_num'])) \
+						for i in values]).astype('float64')
 
 		except KeyError:
-
-			pass
+			#pass
+			spec['values']	= values
 
 		return spec
 
@@ -99,6 +99,10 @@ def shift_spec(spec,params):
 def rebin_spec(spec,rebin):
 	'''Rebin histogram.'''
 
+	if not isinstance(rebin,int) or rebin < 0:
+
+		raise ValueError(f'rebin must be a positive-valued integer!')
+
 	if rebin == 1:
 
 		return spec
@@ -111,32 +115,42 @@ def rebin_spec(spec,rebin):
 				of the rebin factor {rebin}!')
 
 	#values
+	#values 	= np.sum(spec['values'].reshape(int(bins/rebin),rebin),axis=1)
+
 	if spec['values'].ndim == 1:
 
-		values 	= np.sum(spec['values'].reshape(int(bins/rebin),rebin),axis=1)
+		values 		= np.sum(spec['values'].reshape(int(bins/rebin),rebin),axis=1)
 
 	elif spec['values'].ndim == 2:
 
-		mc_num 	= spec['values'].shape[1]
-		values 	= np.sum(spec['values'].reshape(int(bins/rebin),rebin,mc_num),axis=1)
+		_,mc_num 	= spec['values'].shape
+		values 		= np.sum(spec['values'].reshape(int(bins/rebin),rebin,mc_num),axis=1)
 
 	else:
 		raise ValueError(f'dimension of values ({spec["values"].ndim}) must be one or two!')
 
 	#edges and centers
-	if rebin % 2:
+	centers		= spec['x_centers'] if rebin % 2 else spec['x_edges']
 
-		#edges 	= spec['x_edges'][::rebin]
-		centers = spec['x_centers'][int(rebin/2)::rebin]
+	spec_rebin	= {'x_edges':	spec['x_edges'][::rebin],
+			   'x_centers':	centers[int(rebin/2)::rebin],
+			   'values':	values,
+			  }
 
-	else:
-		#edges 	= spec['x_edges'][::rebin]
-		centers = spec['x_edges'][int(rebin/2)::rebin]
+	#mc_values
+	#try:
+		#mc_num		= len(spec['mc_values'])
+	#	_,mc_num	= spec['mc_values'].shape
+		#mc_values	= spec['mc_values'].reshape(mc_num,int(bins/rebin),rebin)
+	#	mc_values	= spec['mc_values'].reshape(int(bins/rebin),rebin,mc_num)
+		
+		#spec_rebin['mc_values'] = np.sum(mc_values,axis=2)
+	#	spec_rebin['mc_values'] = np.sum(mc_values,axis=1)
 
-	return {#'x_edges':	edges,
-		'x_centers':	centers,
-		'values':	values,
-		}
+	#except KeyError:
+	#	pass
+
+	return spec_rebin
 
 #---------------------------------------------------------------------------------------#
 #		Evaluate histogram

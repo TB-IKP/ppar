@@ -22,6 +22,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+from .spectrum import eval_spec
 from .utils import name_nucl,gaussian,right,piecewise
 
 #---------------------------------------------------------------------------------------#
@@ -54,11 +55,35 @@ def plot_hist(spec,log=False,rescale=False,**kwargs):
 	except KeyError:
 		label ='Experiment'
 
-	ax.step(spec['x_centers']*scale,spec['values'],
-		where='mid',color='black',
-		label=label,
-		#label=kwargs['label'],
-		)
+	if spec['values'].ndim == 1:
+
+		ax.step(spec['x_centers']*scale,
+			spec['values'],
+			where='mid',
+			color='black',
+			label=label,
+			#label=kwargs['label'],
+			)
+
+	else:
+		_spec = eval_spec(spec,0)
+
+		ax.step(_spec['x_centers']*scale,
+			_spec['mode'],
+			where='mid',
+			color='black',
+			label=label,
+			#label=kwargs['label'],
+			)
+
+		ax.fill_between(
+			_spec['x_centers'],
+			_spec['sc_interval'][:,0],
+			_spec['sc_interval'][:,1],
+			step='mid',
+			color='grey',
+			alpha=0.5
+			)
 
 	if log:
 		ax.set_yscale('log')
@@ -151,8 +176,19 @@ def plot_ppar(self,spec,plot_fit,log,rescale,reac,**kwargs):
 			#shifted fit (centered at p-p0=0 for NSCL or p=0 for RIBF)
 			y_val_shift 	= piecewise(x_val_plot+fit_res[-2],True,fit_res)
 
-		ax.plot(x_val_plot,y_val_plot,linestyle='-',color='forestgreen',label='Fit spectrum')
-		ax.plot(x_val_plot,y_val_shift,linestyle='--',color='forestgreen',label='Fit shifted')
+		ax.plot(x_val_plot,
+			y_val_plot,
+			linestyle='-',
+			color='forestgreen',
+			label='Fit spectrum'
+			)
+		
+		ax.plot(x_val_plot,
+			y_val_shift,
+			linestyle='--',
+			color='forestgreen',
+			label='Fit shifted'
+			)
 
 		#fit range
 		ax.axvspan(fit_range[0]*scale,fit_range[1]*scale,
@@ -206,8 +242,10 @@ def plot_stop(data,interpol,beam,product,**kwargs):
 
 		x_val = np.linspace(np.min(data[key][:,1]),np.max(data[key][:,1]),1000)
 
-		ax.plot(x_val*1e-3,interpol[key]['TKE-range'](x_val)*1e-3,
-			color=Dic_colors[key],linestyle='--',
+		ax.plot(x_val*1e-3,
+			interpol[key]['TKE-range'](x_val)*1e-3,
+			color=Dic_colors[key],
+			linestyle='--',
 			zorder=2,
 			label=f'Interpolation {name_nucl(nucl["name"])}',
 			)
@@ -247,18 +285,26 @@ def plot_theo(data,rescale,**kwargs):
 		ax.plot(data['orig']['x_centers']*scale,
 			#data['orig']['x_centers']+kinematics['after']['p'])*scale,
 			data['orig']['values']/np.sum(data['orig']['values']),
-			linestyle='-',color='grey',alpha=0.5,
-			label='Theory shifted')
+			linestyle='-',
+			color='grey',
+			alpha=0.5,
+			label='Theory shifted'
+			)
 
 		ax.plot(data['tail']['x_centers']*scale,
 			data['tail']['values']/np.sum(data['tail']['values']),
-			linestyle='--',color='grey',alpha=0.5,
-			label='w/ unreacted')
+			linestyle='--',
+			color='grey',
+			alpha=0.5,
+			label='w/ unreacted'
+			)
 
 		ax.plot(data['tail_target']['x_centers']*scale,
 			data['tail_target']['values']/np.sum(data['tail_target']['values']),
-			linestyle='-',color='black',
-			label='w/ unreacted \nand target')
+			linestyle='-',
+			color='black',
+			label='w/ unreacted \nand target'
+			)
 
 		x_label = r'$p_{\parallel}$'
 
@@ -266,8 +312,10 @@ def plot_theo(data,rescale,**kwargs):
 
 		ax.plot(data['orig']['x_centers']*scale,
 			data['orig']['values']/np.sum(data['orig']['values']),
-			linestyle='-',color='black',
-			label='Theory rest frame')
+			linestyle='-',
+			color='black',
+			label='Theory rest frame'
+			)
 
 		x_label = r'$p_{\parallel}$'
 		#x_label = r'$p_{\parallel}-p_{\parallel,0}$'
@@ -353,9 +401,12 @@ def plot_mode(self,spec,plot_theory,log,rescale,show_region,**kwargs):
 		#apply scaling factor for agreement with experimental data
 		y_val_plot 	= y_val_plot*self.fit_res[0]#*self.params['rebin']
 
-		ax.plot(x_val_plot*scale,y_val_plot,
-			linestyle='-',color='forestgreen',
-			label=label[1])
+		ax.plot(x_val_plot*scale,
+			y_val_plot,
+			linestyle='-',
+			color='forestgreen',
+			label=label[1]
+			)
 
 		#fit range if requested and fitted
 		if show_region and len(self.fit_res) > 1:

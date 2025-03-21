@@ -277,13 +277,3 @@ class ppar_RIBF():
 			return plot_ppar(self,self.rebin_reac,plot_fit,log,rescale,True,**kwargs)
 
 		return plot_ppar(self,self.spec_reac,plot_fit,log,rescale,True,**kwargs)
-
-	#@staticmethod
-	#def load_spec(file,hist,mc_num):
-
-	#	#file path
-	#	if not path.isfile(file):
-
-	#		raise ValueError(f'file {file} does not exist!')
-
-	#	return load_file(file,hist,mc_num=mc_num)
