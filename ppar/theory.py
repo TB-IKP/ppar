@@ -32,8 +32,10 @@ from .utils import gaussian,right
 #---------------------------------------------------------------------------------------#
 
 class theo():
+	'''theo class holding theoretical distributions'''
 
-	def __init__(self,x,y):
+	def __init__(self,x: list[int],y: list[float]):
+		'''Create theo instance.'''
 
 		self.centers 	= x
 		self.values 	= y
@@ -49,7 +51,15 @@ class theo():
 #---------------------------------------------------------------------------------------#
 
 def load_theo(file_name):
-	'''Load theoretical momentum distribution from file.'''
+	'''
+	Load theoretical momentum distribution from file.
+
+	Args:
+		file_name (str):	file with theory
+
+	Returns:
+		theo (obj):		theo object
+	'''
 
 	ppar_theo = np.loadtxt(file_name)
 
@@ -67,7 +77,6 @@ def filter_p(x,limits):
 
 	return mask
 
-#def convolve_theo(ppar_theo,p_range,fit_res,kinematics,params,**kwargs):
 def convolve_theo(ppar_theo,boost,p_range,fit_res,params,**kwargs):
 	'''Convolution of theoretical momentum distributions with 
 	rectangular function for uncertainty of reaction position

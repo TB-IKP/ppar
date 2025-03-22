@@ -28,6 +28,7 @@ import numpy as np
 
 from numpy.random import poisson
 from scipy.optimize import minimize
+from matplotlib.pyplot import Figure,Axes
 #from scipy.stats import norm
 
 from .utils import gaussian,left,right,piecewise,calc_mode,calc_sc
@@ -39,7 +40,15 @@ from .utils import gaussian,left,right,piecewise,calc_mode,calc_sc
 class spectrum():
 	'''spectrum class'''
 
-	def __init__(self,file_name,hist_name,**kwargs):
+	def __init__(self,file_name: str,hist_name: str,**kwargs):
+		'''
+		Create spectrum instance for experimental data.
+
+		:param file_name:	
+			.root file with spectrum
+		:param hist_name:
+			name of histogram in file
+		'''
 
 		self.file_name 	= file_name
 		self.hist_name 	= hist_name
@@ -48,8 +57,21 @@ class spectrum():
 			load_file(file_name,hist_name,**kwargs)
 
 		self.ndim 	= self.values.ndim
+		self.bins 	= len(self.centers)
 
-	def rebin(self,rebin,overwrite=True):
+		if self.ndim == 2:
+			_,self.mc_num 	= self.values.shape
+
+	def rebin(self,rebin: int,overwrite: bool=True):
+		'''
+		Rebin spectrum.
+
+		:param rebin:
+			rebin factor
+		:param overwrite:
+			overwrite loaded data, default True
+			if False, _rebin is used as suffix
+		'''
 
 		if overwrite:
 			self.centers,self.edges,self.values = \
@@ -58,12 +80,48 @@ class spectrum():
 			self.centers_rebin,self.edges_rebin,self.values_rebin = \
 				rebin_spec(self.centers,self.edges,self.values,rebin)
 
-	def eval(self,threshold=0):
+	def eval(self,threshold: int=0):
+		'''
+		Evaluate Monte-Carlo sampled spectrum in terms of 
+		mode and shoprtest-coverage interval for bins above threshold.
 
-		self.ind_nonzero,self.mode,self.sc_interval = \
-			eval_spec(self.centers,self.edges,self.values,threshold)
+		:param threshold:
+			threshold for which a bin 
+			is included in ind_nonzero
+		'''
+
+		if self.ndim == 2:
+		
+			self.ind_nonzero,self.mode,self.sc_interval = \
+				eval_spec(self.centers,self.edges,self.values,threshold)
+
+	def plot(self,log: bool=False,rescale: bool=False,**kwargs) -> tuple[Figure,Axes]:
+		'''
+		Plot spectrum.
+
+		:param log:
+			use logarithmic vertical scale, default False
+		:param rescale:
+			rescale horizontal axis to GeV/c, default False
+
+		:return fig:
+			Figure
+		:return ax:
+			Axes
+		'''
+
+		from .plots import plot_hist
+
+		return plot_hist(self,log,rescale,**kwargs)
 
 	def copy(self):
+		'''
+		Create a deepcopy of the spectrum without results
+		from eval method (mode, sc_interval, ind_nonzero).
+
+		:return spectrum:
+			deepcopy of spectrum object
+		'''
 
 		_copy = deepcopy(self)
 
@@ -121,6 +179,10 @@ def prepare_spec(file_name,hist_name,kinematics,beam,product):
 	data['x_edges']	       *= corr_fac
 
 	return data
+
+#---------------------------------------------------------------------------------------#
+#		Shift histogram horizontally
+#---------------------------------------------------------------------------------------#
 
 def shift_spec(spec,params):
 
@@ -285,20 +347,3 @@ def fit_spec(spec,fit_range,x0):
 						options={'maxiter':10000})
 
 	return opt_res_min
-
-#def fit_peak(spec,fit_range,x0):
-	'''Fit of experimental momentum distributions without low-momentum tail.'''
-
-#	mask  	= (spec['x_centers'] >= fit_range[0])*\
-#		  (spec['x_centers'] <= fit_range[1])
-
-#	x_val 	= spec['x_centers'][mask]
-#	y_val 	= spec['values'][mask]
-
-#	opt_res_min 	= minimize(right_minimize,
-#				args=(x_val,y_val),
-#				x0=x0,
-#				method='Nelder-Mead',
-#				options={'maxiter':10000})
-
-#	return opt_res_min

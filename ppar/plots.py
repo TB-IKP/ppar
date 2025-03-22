@@ -22,7 +22,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from .spectrum import eval_spec
+from matplotlib.pyplot import Figure,Axes
+
+from .spectrum import spectrum,eval_spec
 from .utils import name_nucl,gaussian,right,piecewise
 
 #---------------------------------------------------------------------------------------#
@@ -36,13 +38,31 @@ Dic_colors = {'beam':'black','product':'forestgreen','target':'forestgreen'}
 #		Plot momentum distribution
 #---------------------------------------------------------------------------------------#
 
-def plot_hist(spec,log=False,rescale=False,**kwargs):
-	'''Plot experimental momentum distribution.'''
+def plot_hist(spec: spectrum,log: bool=False,rescale: bool=False,**kwargs) -> tuple[Figure,Axes]:
+	'''
+	Plot experimental momentum distribution.
+
+	:param spec:
+		spectrum object with experimental data
+	:param log:
+		use logarithmic vertical scale, default False
+	:param rescale:
+		rescale horizontal axis to GeV/c, default False
+
+	:return fig:
+		Figure
+	:return ax:
+		Axes
+	'''
 
 	#A few settings are overwritten or re-done if the function 
 	#is called from plot_ppar (e.g. NSCL and RIBF differences).
 	#Some options exist in here to make this function usuable
 	#if called from outside.
+
+	if not isinstance(spec,spectrum):
+
+		raise ValueError(f'spec must be an instance of the class spectrum not {type(spec)}!')
 
 	#Convert p to GeV/c
 	scale = 1e-3 if rescale else 1

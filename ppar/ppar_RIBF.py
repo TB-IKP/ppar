@@ -23,6 +23,9 @@ from os import path
 
 import numpy as np
 
+from scipy.optimize import OptimizeResult
+from matplotlib.pyplot import Figure,Axes
+
 from .spectrum import spectrum,fit_spec
 from .plots import plot_ppar
 from .utils import mg_cm2_to_um,atomic_mass_to_ion_mass
@@ -33,9 +36,22 @@ from .messages import start_message,nucl_message
 #---------------------------------------------------------------------------------------#
 
 class ppar_RIBF():
+	'''Class for analysis of parallel momentum distributions from RIBF data.'''
 
-	def __init__(self,beam,target,product,verbose=True):
-		'''Create ppar instance for RIBF data.'''
+	def __init__(self,beam: dict,target: dict,product: dict,verbose: bool=True):
+		'''
+		Create ppar instance for RIBF data.
+
+		:param beam:
+			beam details with keys name, A, Z, mass
+		:param target:
+			target details with keys name, A, Z, mass, 
+			thickness, density
+		:param product:
+			product details with keys name, A, Z, mass 
+		:param verbose:
+			toggle messages, default True
+		'''
 
 		#parameters
 		self.params = {}
@@ -89,41 +105,56 @@ class ppar_RIBF():
 
 		#	header_message('Kinematics')
 
-	# def calc_stopping(self,en_in,en_out,steps=5):
-	# 	'''Calculate stopping in the target using Atima.'''
+	def calc_stopping(self):
+		'''Calculate stopping in the target using Atima.'''
 
-	# 	#incoming energy (BigRIPS)
-	# 	if not isinstance(en_in,(int,float)):
+		raise NotImplementedError('Not yet implemented! Use set_p_range method instead!')
 
-	# 		raise ValueError(f'en_in must be float not {type(en_in)}!')
+		try:
+			import atima
 
-	# 	#outgoing energy (ZDS)
-	# 	if not isinstance(en_out,(int,float)):
+		except ModuleNotFoundError:
+			print('Module atima not found. Use set_p_range method instead!')
 
-	# 		raise ValueError(f'en_out must be float not {type(en_out)}!')
+		# #incoming energy (BigRIPS)
+		# if not isinstance(en_in,(int,float)):
 
-	# 	#maybe hand over here spectra and determine limits automatically...
+		# 	raise ValueError(f'en_in must be float not {type(en_in)}!')
 
-	# 	#steps
-	# 	if not isinstance(steps,(int,float)):
+		# #outgoing energy (ZDS)
+		# if not isinstance(en_out,(int,float)):
 
-	# 		raise ValueError(f'steps must be int not {type(steps)}!')
+		# 	raise ValueError(f'en_out must be float not {type(en_out)}!')
 
-	# 	self.stopping 	= stopping_target(en_in,en_out,steps,
-	# 				self.beam,self.target,self.product)
+		# #maybe hand over here spectra and determine limits automatically...
 
-	# 	self.p_range 	= momentum_range(self.stopping,
-	# 				self.beam,self.target,self.product)
+		# #steps
+		# if not isinstance(steps,(int,float)):
 
-	# def plot_stopping(self,**kwargs):
-	# 	'''Plot results of stopping calculation using Atima.'''
+		# 	raise ValueError(f'steps must be int not {type(steps)}!')
+
+		# self.stopping 	= stopping_target(en_in,en_out,steps,
+		# 			self.beam,self.target,self.product)
+
+		# self.p_range 	= momentum_range(self.stopping,
+		# 			self.beam,self.target,self.product)
+
+	def plot_stopping(self,**kwargs):
+		'''Plot results of stopping calculation using Atima.'''
+
+		raise NotImplementedError('Not yet implemented!')
 
 	# 	return plot_stop(self.stopping['data'],self.stopping['interpol'],
 	# 			self.beam,self.product,**kwargs)
 
-	def calc_stopping(self,p_range):
-		'''Insert momentum uncertainty due to reaction position along the target.
-		Will be replaced with actual calculation later (as for NSCL data).'''
+	def set_p_range(self,p_range: list[float]):
+		'''
+		Insert momentum uncertainty due to reaction position along the target.
+		Will be replaced with actual calculation later (as for NSCL data).
+
+		:param p_range:
+			Symmetrized momentum spread, format [-p,p]
+		'''
 
 		if isinstance(p_range,(list,np.ndarray)) and len(p_range) == 2:
 
@@ -132,8 +163,17 @@ class ppar_RIBF():
 		else:
 			raise ValueError('p_range must be a list of length two!')
 
-	def load_unreacted(self,file,histogram,rebin=1):
-		'''Load the experimental histogram of unreacted beam setting and extract data.'''
+	def load_unreacted(self,file: str,hist: str,rebin: int=1):
+		'''
+		Load the experimental histogram of unreacted beam setting and extract data.
+
+		:param file:
+			.root file with spectrum
+		:param hist:
+			name of histogram in file
+		:param rebin:
+			rebin factor, default 1
+		'''
 
 		#file path
 		if not path.isfile(file):
@@ -145,13 +185,22 @@ class ppar_RIBF():
 
 			raise ValueError(f'rebin must be int not {type(rebin)}!')
 
-		self.spec_unreac  	= spectrum(file,histogram)
-		
+		self.spec_unreac  	= spectrum(file,hist)
+
 		if rebin > 1:
 			self.spec_unreac.rebin(rebin,overwrite=True)
 
-	def load_reacted(self,file,histogram,rebin=1):
-		'''Load the experimental histogram of reaction setting and extract data.'''
+	def load_reacted(self,file: str,hist: str,rebin: int=1):
+		'''
+		Load the experimental histogram of reaction setting and extract data.
+
+		:param file:
+			.root file with spectrum
+		:param hist:
+			name of histogram in file
+		:param rebin:
+			rebin factor, default 1
+		'''
 
 		#file path
 		if not path.isfile(file):
@@ -163,13 +212,27 @@ class ppar_RIBF():
 
 			raise ValueError(f'rebin must be int not {type(rebin)}!')
 
-		self.spec_reac  	= spectrum(file,histogram)
-		
+		self.spec_reac  	= spectrum(file,hist)
+
 		if rebin > 1:
 			self.spec_reac.rebin(rebin,overwrite=True)
 
-	def fit_unreacted(self,fit_range,x0):
-		'''Fit the experimental histogram to extract its functional shape.'''
+	def fit_unreacted(self,fit_range: list[int],x0: list[float]) -> OptimizeResult:
+		'''
+		Fit the experimental histogram of unreacted beam to extract its functional shape.
+
+		:param fit_range:	
+			range for spectrum fit
+		:param x0:
+			initial parameter guess, length specifies fit function
+			3 	Gaussian
+			4 	two erf functions
+			7 	two erf functions with exponential tail
+			10 	two erf functions with exponential tail and Gaussian
+
+		:return fit_res_unreac:
+			fit result
+		'''
 
 		#fit_range
 		if isinstance(fit_range,(list,np.ndarray)) and len(fit_range) == 2:
@@ -200,8 +263,22 @@ class ppar_RIBF():
 
 		return self.fit_res_unreac
 
-	def fit_reacted(self,fit_range,x0):
-		'''Fit the experimental histogram to extract its functional shape.'''
+	def fit_reacted(self,fit_range: list[int],x0: list[float]) -> OptimizeResult:
+		'''
+		Fit the experimental histogram from reaction setting to extract its functional shape.
+
+		:param fit_range:	
+			range for spectrum fit
+		:param x0:
+			initial parameter guess, length specifies fit function
+			3 	Gaussian
+			4 	two erf functions
+			7 	two erf functions with exponential tail
+			10 	two erf functions with exponential tail and Gaussian
+
+		:return fit_res_reac:
+			fit result
+		'''
 
 		#fit_range
 		if isinstance(fit_range,(list,np.ndarray)) and len(fit_range) == 2:
@@ -232,8 +309,27 @@ class ppar_RIBF():
 
 		return self.fit_res_reac
 
-	def plot_unreacted(self,rebin=True,plot_fit=True,log=False,rescale=False,**kwargs):
-		'''Plot the experimental momentum distribution with fit if available.'''
+	def plot_unreacted(self,rebin: bool=True,plot_fit: bool=True,log: bool=False,
+				rescale: bool=False,**kwargs) -> tuple[Figure,Axes]:
+		'''
+		Plot the experimental momentum distribution with fit if available.
+
+		:param rebin:
+			plot rebinned spectrum, default True
+		:param plot_fit:
+			plot fit if available, default True
+		:param log:
+			toggle logarithmic vertical axis, default False
+		:param rescale:
+			rescale horizontal axis to GeV/c, default False
+		:param kwargs:
+			keyword arguments passed to plot
+
+		:return fig:
+			Figure
+		:return ax:
+			Axes
+		'''
 
 		#rebin
 		if not isinstance(rebin,bool):
@@ -247,8 +343,27 @@ class ppar_RIBF():
 
 		return plot_ppar(self,self.spec_unreac,plot_fit,log,rescale,False,**kwargs)
 
-	def plot_reacted(self,rebin=True,plot_fit=True,log=False,rescale=False,**kwargs):
-		'''Plot the experimental momentum distribution with fit if available.'''
+	def plot_reacted(self,rebin: bool=True,plot_fit: bool=True,log: bool=False,
+				rescale: bool=False,**kwargs) -> tuple[Figure,Axes]:
+		'''
+		Plot the experimental momentum distribution with fit if available.
+
+		:param rebin:
+			plot rebinned spectrum, default True
+		:param plot_fit:
+			plot fit if available, default True
+		:param log:
+			toggle logarithmic vertical axis, default False
+		:param rescale:
+			rescale horizontal axis to GeV/c, default False
+		:param kwargs:
+			keyword arguments passed to plot
+
+		:return fig:
+			Figure
+		:return ax:
+			Axes
+		'''
 
 		#rebin
 		if not isinstance(rebin,bool):

@@ -1,5 +1,7 @@
 # ppar
 
+[![License: GPL-3.0](https://img.shields.io/github/license/TB-IKP/ppar?color=blue)](LICENSE)
+
 ppar is a [python](https://www.python.org/) program facilitating the comparison 
 of calculated parallel momentum distributions to experimental data.
 Currently, data taken at [NSCL](https://nscl.msu.edu/)/[FRIB](https://frib.msu.edu/) at Michigan State University and 

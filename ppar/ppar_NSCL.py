@@ -23,6 +23,9 @@ from os import path
 
 import numpy as np
 
+from scipy.optimize import OptimizeResult
+from matplotlib.pyplot import Figure,Axes
+
 from .spectrum import rebin_spec,fit_spec,load_file,eval_spec
 from .plots import plot_ppar,plot_stop
 from .kinematics import kinematics_reaction,stopping_target_fw,momentum_range_fw
@@ -35,9 +38,30 @@ from .messages import header_message,start_message,nucl_message,kinematics_messa
 #---------------------------------------------------------------------------------------#
 
 class ppar_NSCL:
+	'''Class for analysis of parallel momentum distributions from NSCL/FRIB data.'''
 
-	def __init__(self,beam,target,product,Brho_reac,Brho_unreac,verbose=True):
-		'''Create ppar instance for NSCL data.'''
+	def __init__(self,beam: dict,target: dict,product: dict,Brho_reac: str|dict,Brho_unreac: str|dict,verbose: bool=True):
+		'''
+		Create ppar instance for NSCL data.
+
+		:param beam:
+			beam details with keys name, A, Z, mass
+		:param target:
+			target details with keys name, A, Z, mass, 
+			thickness, density
+		:param product:
+			product details with keys name, A, Z, mass 
+		:param Brho_reac:
+			path to Barney file for reaction setting or
+			dict with rigidities with keys ``before`` and
+			``after`` for BTS33 (Seg 7) and BTS34 (Seg 8)
+		:param Brho_unreac:
+			path to Barney file for unreacted setting or
+			dict with rigidities with keys ``before`` and
+			``after`` for BTS33 (Seg 7) and BTS34 (Seg 8)
+		:param verbose:
+			toggle messages, default True
+		'''
 
 		#parameters
 		self.params = {}
@@ -140,8 +164,15 @@ class ppar_NSCL:
 
 			kinematics_message(self.kin_unreac,self.beam,self.target,self.beam)
 
-	def calc_stopping(self,threshold=5,method='bw'):
-		'''Calculate stopping in the target using Atima.'''
+	def calc_stopping(self,threshold: int=5,method: str='bw'):
+		'''
+		Calculate stopping in the target using Atima.
+
+		:param threshold:
+			termination criterion for stopping calculation
+		:param method:
+			``fw`` (from BTS33) or ``bw`` (from BTS34) calculation of stopping
+		'''
 
 		#threshold
 		if not isinstance(threshold,(int,float)):
@@ -178,14 +209,23 @@ class ppar_NSCL:
 		else:
 			raise ValueError(f'method must be bw of fw not {method}!')
 
-	def plot_stopping(self,**kwargs):
+	def plot_stopping(self,**kwargs) -> tuple:
 		'''Plot results of stopping calculation using Atima.'''
 
 		return plot_stop(self.stopping['data'],self.stopping['interpol'],
 				self.beam,self.product,**kwargs)
 
-	def load_unreacted(self,file,histogram,rebin=1):
-		'''Load the experimental histogram of unreacted beam setting and extract data.'''
+	def load_unreacted(self,file: str,hist: str,rebin: int=1):
+		'''
+		Load the experimental histogram of unreacted beam setting and extract data.
+
+		:param file:
+			.root file with spectrum
+		:param hist:
+			name of histogram in file
+		:param rebin:
+			rebin factor, default 1
+		'''
 
 		#file path
 		if not path.isfile(file):
@@ -199,15 +239,24 @@ class ppar_NSCL:
 
 		#self.spec_unreac	= prepare_spec(file,histogram,self.kin_reac,
 			#					self.beam,self.product)
-		self.spec_unreac  	= load_file(file,histogram)
+		self.spec_unreac  	= load_file(file,hist)
 		self.rebin_unreac 	= rebin_spec(self.spec_unreac,rebin)
 
 		#add identifiers
 		#self.spec_unreac['reac']	= False
 		#self.rebin_unreac['reac']	= False
 
-	def load_reacted(self,file,histogram,rebin=1):
-		'''Load the experimental histogram of reaction setting and extract data.'''
+	def load_reacted(self,file: str,hist: str,rebin: int=1):
+		'''
+		Load the experimental histogram of reaction setting and extract data.
+
+		:param file:
+			.root file with spectrum
+		:param hist:
+			name of histogram in file
+		:param rebin:
+			rebin factor, default 1
+		'''
 
 		#file path
 		if not path.isfile(file):
@@ -219,15 +268,29 @@ class ppar_NSCL:
 
 			raise ValueError(f'rebin must be int not {type(rebin)}!')
 
-		self.spec_reac  	= load_file(file,histogram)
+		self.spec_reac  	= load_file(file,hist)
 		self.rebin_reac 	= rebin_spec(self.spec_reac,rebin)
 
 		#add identifiers
 		#self.spec_unreac['reac']	= True
 		#self.rebin_unreac['reac']	= True
 
-	def fit_unreacted(self,fit_range,x0):
-		'''Fit the experimental histogram to extract its functional shape.'''
+	def fit_unreacted(self,fit_range: list[int],x0: list[float]) -> OptimizeResult:
+		'''
+		Fit the experimental histogram of unreacted beam to extract its functional shape.
+
+		:param fit_range:	
+			range for spectrum fit
+		:param x0:
+			initial parameter guess, length specifies fit function
+			3 	Gaussian
+			4 	two erf functions
+			7 	two erf functions with exponential tail
+			10 	two erf functions with exponential tail and Gaussian
+
+		:return fit_res_unreac:
+			fit result
+		'''
 
 		#fit_range
 		if isinstance(fit_range,(list,np.ndarray)) and len(fit_range) == 2:
@@ -269,8 +332,22 @@ class ppar_NSCL:
 
 		return self.fit_res_unreac
 
-	def fit_reacted(self,fit_range,x0):
-		'''Fit the experimental histogram to extract its functional shape.'''
+	def fit_reacted(self,fit_range: list[int],x0: list[float]) -> OptimizeResult:
+		'''
+		Fit the experimental histogram from reaction setting to extract its functional shape.
+
+		:param fit_range:	
+			range for spectrum fit
+		:param x0:
+			initial parameter guess, length specifies fit function
+			3 	Gaussian
+			4 	two erf functions
+			7 	two erf functions with exponential tail
+			10 	two erf functions with exponential tail and Gaussian
+
+		:return fit_res_reac:
+			fit result
+		'''
 
 		#fit_range
 		if isinstance(fit_range,(list,np.ndarray)) and len(fit_range) == 2:
@@ -301,8 +378,26 @@ class ppar_NSCL:
 
 		return self.fit_res_reac
 
-	def plot_unreacted(self,rebin=True,plot_fit=True,log=False,rescale=False,**kwargs):
-		'''Plot the experimental momentum distribution with fit if available.'''
+	def plot_unreacted(self,rebin: bool=True,plot_fit: bool=True,log: bool=False,rescale: bool=False,**kwargs) -> tuple[Figure,Axes]:
+		'''
+		Plot the experimental momentum distribution with fit if available.
+
+		:param rebin:
+			plot rebinned spectrum, default True
+		:param plot_fit:
+			plot fit if available, default True
+		:param log:
+			toggle logarithmic vertical axis, default False
+		:param rescale:
+			rescale horizontal axis to GeV/c, default False
+		:param kwargs:
+			keyword arguments passed to plot
+
+		:return fig:
+			Figure
+		:return ax:
+			Axes
+		'''
 
 		#rebin
 		if not isinstance(rebin,bool):
@@ -320,8 +415,26 @@ class ppar_NSCL:
 
 		return plot_ppar(self,self.spec_unreac,plot_fit,log,rescale,False,**kwargs)
 
-	def plot_reacted(self,rebin=True,plot_fit=True,log=False,rescale=False,**kwargs):
-		'''Plot the experimental momentum distribution with fit if available.'''
+	def plot_reacted(self,rebin: bool=True,plot_fit: bool=True,log: bool=False,rescale: bool=False,**kwargs) -> tuple[Figure,Axes]:
+		'''
+		Plot the experimental momentum distribution with fit if available.
+
+		:param rebin:
+			plot rebinned spectrum, default True
+		:param plot_fit:
+			plot fit if available, default True
+		:param log:
+			toggle logarithmic vertical axis, default False
+		:param rescale:
+			rescale horizontal axis to GeV/c, default False
+		:param kwargs:
+			keyword arguments passed to plot
+
+		:return fig:
+			Figure
+		:return ax:
+			Axes
+		'''
 
 		#rebin
 		if not isinstance(rebin,bool):

@@ -23,7 +23,11 @@ from os import path
 
 import numpy as np
 
-from .spectrum import rebin_spec,eval_spec,shift_spec
+from matplotlib.pyplot import Figure,Axes
+
+from .ppar_RIBF import ppar_RIBF
+from .ppar_NSCL import ppar_NSCL
+from .spectrum import spectrum,rebin_spec,eval_spec,shift_spec
 from .plots import plot_theo,plot_mode
 from .theory import load_theo,convolve_theo,fit_theo,scale_theo
 
@@ -34,12 +38,19 @@ from .theory import load_theo,convolve_theo,fit_theo,scale_theo
 class state():
 	'''state class handling momentum distributions and convolutions.'''
 
-	def __init__(self,ppar_exp,ppar_theo):
-		'''Create state instance.'''
+	def __init__(self,ppar_exp: ppar_NSCL|ppar_RIBF,ppar_theo: str):
+		'''
+		Create state instance.
+
+		:param ppar_exp:
+			ppar_NSCl or ppar_FRIB object
+		:param ppar_theo:
+			file with theory
+		'''
 
 		self.params 	= {}
 
-		if not isinstance(ppar_exp,object) or ppar_exp.__class__.__name__ not in ['ppar_NSCL','ppar_RIBF']:
+		if not isinstance(ppar_exp,(ppar_NSCL,ppar_RIBF)):
 
 			raise ValueError(f'ppar_exp must be an instance of the class ppar not {type(ppar_exp)}!')
 
@@ -53,13 +64,17 @@ class state():
 		self.ppar_theo 	= {'orig':load_theo(ppar_theo)}
 		#self.ppar_theo = prepare_theo(ppar_theo,ppar_exp.kin_reac)
 
-	def convolve_theory(self,**kwargs):
-		'''Convolve the theoretical momentum distribution with
-		momentum uncertainty from the target and
-		the experimental momentum distribution.'''
+	def convolve_theory(self,**kwargs) -> dict:
+		'''
+		Convolve the theoretical momentum distribution with momentum uncertainty 
+		from the target and the experimental momentum distribution.
+
+		:return ppar_theo:
+			concolved theoretical momentum distributions
+		'''
 
 		#In the future store this information in params maybe?
-		boost = self.ppar_exp.__class__.__name__ == 'ppar_NSCL'
+		boost = True if isinstance(self.ppar_exp,ppar_NSCL) else False
 
 		if boost:
 			kwargs['kinematics'] = self.ppar_exp.kin_reac
@@ -74,20 +89,34 @@ class state():
 
 		return self.ppar_theo
 
-	def plot_theory(self,rescale=False,**kwargs):
-		'''Plot the theoretical momentum distribution.'''
+	def plot_theory(self,rescale: bool=False,**kwargs) -> tuple:
+		'''
+		Plot the theoretical momentum distribution.
+
+		:param rescale:
+			rescale horizontal axis to GeV/c, default False 
+		'''
 
 		#return plot_theo(self.ppar_theo,self.ppar_exp.kin_reac,rescale,**kwargs)
 		return plot_theo(self.ppar_theo,rescale,**kwargs)
 
-	def rebin_hist(self,spec,rebin=1,threshold=5):
-		'''Rebin experimental data and shift it horizontally 
-		if reacted beam has been fitted before.'''
+	def rebin_hist(self,spec: spectrum,rebin: int=1,threshold: int=5):
+		'''
+		Rebin experimental data and shift it horizontally 
+		if reacted beam has been fitted before.
+
+		:param spec:
+			experimental momentum distribution
+		:param rebin:
+			rebin factor for experiment
+		:param threshold:
+			threshold above which a bin is considered
+		'''
 
 		#spec
-		if not isinstance(spec,object) or spec.__class__.__name__ not in ['spectrum']:
+		if not isinstance(spec,spectrum):
 
-			raise ValueError(f'spec {spec} must be spectrum object!')
+			raise ValueError(f'spec must be an instance of the class spectrum not {type(spec)}!')
 
 		#threshold below which bins are ignored
 		if not isinstance(threshold,int):
@@ -114,9 +143,18 @@ class state():
 
 		self.spec.eval(threshold)
 
-	def fit_theory(self,fit_range):
-		'''Fit convolved theoretical momentum distribution
-		to experimental data. Not recommended.'''
+	def fit_theory(self,fit_range: list[int]) -> list[float]:
+		'''
+		Fit convolved theoretical momentum distribution
+		to experimental data. Not recommended.
+
+		:param fit_range:
+			momentum range used for fit of experimental spectrum
+
+		:return fit_res:
+			list with vertical scaling parameter and
+			horizontal displacement from fit
+		'''
 
 		#fit_range
 		if isinstance(fit_range,(list,np.ndarray)) and len(fit_range) == 2:
@@ -130,15 +168,39 @@ class state():
 
 		return self.fit_res
 
-	def scale_theory(self):
-		'''Scale the convolved theoretical momentum distribution
-		vertically to experimental data using the maximum bin content.'''
+	def scale_theory(self) -> list[float]:
+		'''
+		Scale the convolved theoretical momentum distribution
+		vertically to experimental data using the maximum bin content.
+
+		:return fit_res:
+			list with vertical scaling parameter
+		'''
 
 		self.fit_res = scale_theo(self.spec,self.ppar_theo['tail_target'])
 
 		return self.fit_res
 
-	def plot_hist(self,plot_theory=True,log=False,rescale=False,show_region=True,**kwargs):
-		'''Plot the exclusive experimental momentum distribution with fit if available.'''
+	def plot_hist(self,plot_theory: bool=True,log: bool=False,rescale: bool=False,show_region: bool=True,**kwargs) -> tuple[Figure,Axes]:
+		'''
+		Plot the exclusive experimental momentum distribution 
+		with fit if available.
+
+		:param plot_theory:
+			plot adjusted theory, default True
+		:param log:
+			toggle logarithmic vertical axis, default False
+		:param rescale:
+			rescale horizontal axis to GeV/c, default False
+		:param show_region:
+			show fit/scaling region in case fit_theory was used
+		:param kwargs:
+			keyword arguments passed to plot
+
+		:return fig:
+			Figure
+		:return ax:
+			Axes
+		'''
 
 		return plot_mode(self,self.spec,plot_theory,log,rescale,show_region,**kwargs)
