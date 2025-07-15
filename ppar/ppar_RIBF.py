@@ -309,13 +309,11 @@ class ppar_RIBF():
 
 		return self.fit_res_reac
 
-	def plot_unreacted(self,rebin: bool=True,plot_fit: bool=True,log: bool=False,
+	def plot_unreacted(self,plot_fit: bool=True,log: bool=False,
 				rescale: bool=False,**kwargs) -> tuple[Figure,Axes]:
 		'''
 		Plot the experimental momentum distribution with fit if available.
 
-		:param rebin:
-			plot rebinned spectrum, default True
 		:param plot_fit:
 			plot fit if available, default True
 		:param log:
@@ -330,11 +328,6 @@ class ppar_RIBF():
 		:return ax:
 			Axes
 		'''
-
-		#rebin
-		if not isinstance(rebin,bool):
-
-			raise ValueError(f'rebin must be bool not {type(rebin)}!')
 
 		#log
 		if not isinstance(log,bool):
@@ -343,13 +336,11 @@ class ppar_RIBF():
 
 		return plot_ppar(self,self.spec_unreac,plot_fit,log,rescale,False,**kwargs)
 
-	def plot_reacted(self,rebin: bool=True,plot_fit: bool=True,log: bool=False,
+	def plot_reacted(self,plot_fit: bool=True,log: bool=False,
 				rescale: bool=False,**kwargs) -> tuple[Figure,Axes]:
 		'''
 		Plot the experimental momentum distribution with fit if available.
 
-		:param rebin:
-			plot rebinned spectrum, default True
 		:param plot_fit:
 			plot fit if available, default True
 		:param log:
@@ -364,11 +355,6 @@ class ppar_RIBF():
 		:return ax:
 			Axes
 		'''
-
-		#rebin
-		if not isinstance(rebin,bool):
-
-			raise ValueError(f'rebin must be bool not {type(rebin)}!')
 
 		#log
 		if not isinstance(log,bool):

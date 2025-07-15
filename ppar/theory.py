@@ -129,8 +129,26 @@ def convolve_theo(ppar_theo,boost,p_range,fit_res,params,**kwargs):
 #		Fit convoluted theoretical momentum distribution to data
 #---------------------------------------------------------------------------------------#
 
-def shift_scale_theo(params,x,y,scale,ppar_theo):
-	'''Fit function for horizontal shift of convolved momentum distributions.'''
+def scale_theo(x,y,ppar_theo):
+	'''Scale convolved momentum distributions
+	vertically using the maximum bin content.'''
+
+	#for y take the modes of the MC values
+	#x 	= spec.centers
+	#y 	= spec.mode
+
+	#position of maximum y value for scaling
+	x_max 	= x[np.argmax(y)]
+	y_max 	= np.max(y)
+
+	#scale theory to experiment
+	scale 	= y_max/np.max(ppar_theo.values)
+
+	return np.array([scale])
+
+def fit_x_theo(params,x,y,scale,ppar_theo):
+	'''Fit function for horizontal shift of 
+	convolved momentum distributions.'''
 
 	x_shift 	= x - params[0]
 	fit 		= scale*ppar_theo.interpol(x_shift)
@@ -142,9 +160,31 @@ def shift_scale_theo(params,x,y,scale,ppar_theo):
 
 	return residuals
 
-def scale_theo(spec,ppar_theo):
-	'''Scale convolved momentum distributions
-	vertically using the maximum bin content.'''
+def fit_y_theo(params,x,y,ppar_theo):
+	'''Fit function for vertical scaling of 
+	convolved momentum distributions.'''
+
+	fit 		= params[0]*ppar_theo.interpol(x)
+
+	residuals 	= np.linalg.norm(y-fit)
+
+	return residuals
+
+def fit_xy_theo(params,x,y,ppar_theo):
+	'''Fit function for horizontal shift and vertical scaling 
+	of convolved momentum distributions.'''
+
+	x_shift 	= x - params[1]
+	fit 		= params[0]*ppar_theo.interpol(x_shift)
+
+	residuals 	= np.linalg.norm(y-fit)
+
+	return residuals
+
+def fit_theo(spec,ppar_theo,fit_range,method):
+	'''Scale convolved momentum distributions and fit them horizontally.'''
+
+	scale 	= scale_theo(spec.centers,spec.mode,ppar_theo)[0]
 
 	#for y take the modes of the MC values
 	x 	= spec.centers
@@ -154,38 +194,43 @@ def scale_theo(spec,ppar_theo):
 	x_max 	= x[np.argmax(y)]
 	y_max 	= np.max(y)
 
-	#scale theory to experiment
-	scale 	= y_max/np.max(ppar_theo.values)
-
-	return np.array([scale])
-
-def fit_theo(spec,ppar_theo,fit_range):
-	'''Scale convolved momentum distributions and fit them horizontally.'''
-
-	scale 	= scale_theo(spec,ppar_theo)[0]
-
-	#for y take the modes of the MC values
-	x 	= spec.centers
-	y 	= spec.mode
-
-	#position of maximum y value for scaling
-	x_max 	= x[np.argmax(y)]
-	#y_max 	= np.max(y)
-
-	#scale theory to experiment
-	#scale 	= y_max/np.max(ppar_theo['values'])
-
 	mask  	= (x >= fit_range[0])*(x <= fit_range[1])
 
 	#cut to range
 	x_val 	= spec.centers[mask]
 	y_val 	= y[mask]
 
-	res_fit_min = minimize(shift_scale_theo,
-				args=(x_val,y_val,scale,ppar_theo),
-				x0=x_max,
-				options={'maxiter':10000})
+	if method == 'x':
+	
+		res_fit_min = minimize(fit_x_theo,
+					args=(x_val,y_val,scale,ppar_theo),
+					x0=x_max,
+					options={'maxiter':10000}
+					)
+
+		scale 	= scale_theo(spec.centers-res_fit_min.x[0],
+				spec.mode,ppar_theo)[0]
+
+		return np.array([scale,res_fit_min.x[0]])
+
+	elif method == 'y':
+
+		res_fit_min = minimize(fit_y_theo,
+					args=(x_val,y_val,ppar_theo),
+					x0=y_max,
+					options={'maxiter':10000}
+					)
+
+		return np.array([res_fit_min.x[0],0])
+
+	elif method == 'xy':
+
+		res_fit_min = minimize(fit_xy_theo,
+					args=(x_val,y_val,ppar_theo),
+					x0=[y_max,x_max],
+					options={'maxiter':10000}
+					)
+
+		return np.array(res_fit_min.x)
 
 	#res_fit_min.x = np.array([scale,res_fit_min.x[0]])
-
-	return np.array([scale,res_fit_min.x[0]])

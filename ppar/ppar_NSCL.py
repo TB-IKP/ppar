@@ -26,7 +26,7 @@ import numpy as np
 from scipy.optimize import OptimizeResult
 from matplotlib.pyplot import Figure,Axes
 
-from .spectrum import rebin_spec,fit_spec,load_file,eval_spec
+from .spectrum import spectrum,fit_spec
 from .plots import plot_ppar,plot_stop
 from .kinematics import kinematics_reaction,stopping_target_fw,momentum_range_fw
 from .kinematics import stopping_target_bw,momentum_range_bw,correct_kinematics
@@ -237,10 +237,15 @@ class ppar_NSCL:
 
 			raise ValueError(f'rebin must be int not {type(rebin)}!')
 
+		self.spec_unreac 	= spectrum(file,hist)
+
+		if rebin > 1:
+			self.spec_unreac.rebin(rebin,overwrite=True)
+
 		#self.spec_unreac	= prepare_spec(file,histogram,self.kin_reac,
 			#					self.beam,self.product)
-		self.spec_unreac  	= load_file(file,hist)
-		self.rebin_unreac 	= rebin_spec(self.spec_unreac,rebin)
+		#self.spec_unreac  	= load_file(file,hist)
+		#self.rebin_unreac 	= rebin_spec(self.spec_unreac,rebin)
 
 		#add identifiers
 		#self.spec_unreac['reac']	= False
@@ -268,8 +273,13 @@ class ppar_NSCL:
 
 			raise ValueError(f'rebin must be int not {type(rebin)}!')
 
-		self.spec_reac  	= load_file(file,hist)
-		self.rebin_reac 	= rebin_spec(self.spec_reac,rebin)
+		self.spec_reac 		= spectrum(file,hist)
+
+		if rebin > 1:
+			self.spec_reac.rebin(rebin,overwrite=True)
+
+		#self.spec_reac  	= load_file(file,hist)
+		#self.rebin_reac 	= rebin_spec(self.spec_reac,rebin)
 
 		#add identifiers
 		#self.spec_unreac['reac']	= True
@@ -305,26 +315,13 @@ class ppar_NSCL:
 
 			raise ValueError('x0 must be a list containing the start parameters!')
 
-		#if len(x0) == 7:
-
-		#	self.params['gauss'] 	= False
-
-		#elif len(x0) == 10:
-
-		#	self.params['gauss'] 	= True
-
-		#else:
-		#	raise ValueError('x0 must be a list of length ten(seven) if a Gaussian is (not) included!')
-
 		if len(x0) not in [3,4,7,10]:
 
 			raise ValueError('x0 must be list of length three for a Gaussian fit, \
 				four for two error functions, seven for an exponential tail, \
 				and ten for a combination of exponential and Gaussian tail!')
 
-		#self.fit_res_unreac 		= fit_spec(self.rebin_unreac,self.fit_range_unreac,
-		#						x0,self.params['gauss'])
-		self.fit_res_unreac 		= fit_spec(self.rebin_unreac,self.fit_range_unreac,x0)
+		self.fit_res_unreac 		= fit_spec(self.spec_unreac,self.fit_range_unreac,x0)
 
 		#correct kinematics unreacted run
 		self.kin_unreac['after'] 	= correct_kinematics(self.kin_unreac['after']['p'],
@@ -357,20 +354,13 @@ class ppar_NSCL:
 		else:
 			raise ValueError('fit_range must be a list of length two!')
 
-		#x0
-		#if not isinstance(fit_range,(list,np.ndarray)) or len(x0) != 4:
-
-		#	raise ValueError('x0 must be a list of length four containing the start parameters!')
-
-		#self.fit_res_reac 		= fit_peak(self.rebin_reac,self.fit_range_reac,x0)
-
 		if len(x0) not in [3,4,7,10]:
 
 			raise ValueError('x0 must be list of length three for a Gaussian fit, \
 				four for two error functions, seven for an exponential tail, \
 				and ten for a combination of exponential and Gaussian tail!')
 
-		self.fit_res_reac 		= fit_spec(self.rebin_reac,self.fit_range_reac,x0)
+		self.fit_res_reac 		= fit_spec(self.spec_reac,self.fit_range_reac,x0)
 
 		#correct kinematics unreacted run
 		self.kin_reac['after'] 		= correct_kinematics(self.kin_reac['after']['p'],
@@ -382,8 +372,6 @@ class ppar_NSCL:
 		'''
 		Plot the experimental momentum distribution with fit if available.
 
-		:param rebin:
-			plot rebinned spectrum, default True
 		:param plot_fit:
 			plot fit if available, default True
 		:param log:
@@ -399,28 +387,18 @@ class ppar_NSCL:
 			Axes
 		'''
 
-		#rebin
-		if not isinstance(rebin,bool):
-
-			raise ValueError(f'rebin must be bool not {type(rebin)}!')
-
 		#log
 		if not isinstance(log,bool):
 
 			raise ValueError(f'log must be bool not {type(log)}!')
-
-		if rebin:
-
-			return plot_ppar(self,self.rebin_unreac,plot_fit,log,rescale,False,**kwargs)
 
 		return plot_ppar(self,self.spec_unreac,plot_fit,log,rescale,False,**kwargs)
 
-	def plot_reacted(self,rebin: bool=True,plot_fit: bool=True,log: bool=False,rescale: bool=False,**kwargs) -> tuple[Figure,Axes]:
+	def plot_reacted(self,plot_fit: bool=True,log: bool=False,
+				rescale: bool=False,**kwargs) -> tuple[Figure,Axes]:
 		'''
 		Plot the experimental momentum distribution with fit if available.
 
-		:param rebin:
-			plot rebinned spectrum, default True
 		:param plot_fit:
 			plot fit if available, default True
 		:param log:
@@ -436,19 +414,10 @@ class ppar_NSCL:
 			Axes
 		'''
 
-		#rebin
-		if not isinstance(rebin,bool):
-
-			raise ValueError(f'rebin must be bool not {type(rebin)}!')
-
 		#log
 		if not isinstance(log,bool):
 
 			raise ValueError(f'log must be bool not {type(log)}!')
-
-		if rebin:
-
-			return plot_ppar(self,self.rebin_reac,plot_fit,log,rescale,True,**kwargs)
 
 		return plot_ppar(self,self.spec_reac,plot_fit,log,rescale,True,**kwargs)
 

@@ -143,13 +143,16 @@ class state():
 
 		self.spec.eval(threshold)
 
-	def fit_theory(self,fit_range: list[int]) -> list[float]:
+	def fit_theory(self,fit_range: list[int],method: str='y') -> list[float]:
 		'''
 		Fit convolved theoretical momentum distribution
 		to experimental data. Not recommended.
 
 		:param fit_range:
 			momentum range used for fit of experimental spectrum
+
+		:param method:
+			fit dimension ('x', 'y', 'xy'), default 'y'
 
 		:return fit_res:
 			list with vertical scaling parameter and
@@ -164,7 +167,12 @@ class state():
 		else:
 			raise ValueError('fit_range must be a list of length two!')
 
-		self.fit_res = fit_theo(self.spec,self.ppar_theo['tail_target'],self.fit_range)
+		#method
+		if method not in ['x','y','xy']:
+
+			raise ValueError('method must be x, y or xy!')
+
+		self.fit_res = fit_theo(self.spec,self.ppar_theo['tail_target'],self.fit_range,method)
 
 		return self.fit_res
 
@@ -177,7 +185,8 @@ class state():
 			list with vertical scaling parameter
 		'''
 
-		self.fit_res = scale_theo(self.spec,self.ppar_theo['tail_target'])
+		self.fit_res = scale_theo(self.spec.centers,self.spec.mode,
+					self.ppar_theo['tail_target'])
 
 		return self.fit_res
 

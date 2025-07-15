@@ -154,6 +154,8 @@ def correct_kinematics(p,fit_res,nucl):
 def run_atima(TKE,nucl,target):
 	'''Run Atima via PyAtima and extract the range in the target material.'''
 
+	import PyAtima as pa
+
 	#convert TKE to MeV/u
 	en 		= TKE/nucl['ion mass']
 

@@ -32,7 +32,7 @@ from .utils import name_nucl,gaussian,right,piecewise
 #---------------------------------------------------------------------------------------#
 
 #Colors are used in plot of stopping calculations
-Dic_colors = {'beam':'black','product':'forestgreen','target':'forestgreen'}
+Dic_colors = {'beam':'black','product':'orange','target':'orange'}
 
 #---------------------------------------------------------------------------------------#
 #		Plot momentum distribution
@@ -126,7 +126,7 @@ def plot_hist(spec: spectrum,log: bool=False,rescale: bool=False,**kwargs) -> tu
 
 		ax.set_xlabel(r'$p_{\parallel}$ %s'% unit,fontsize=16)
 
-	ax.set_ylabel('Events per bin',fontsize=16)
+	ax.set_ylabel('Events',fontsize=16)
 
 	ax.tick_params(axis='both',which='major',labelsize=16)
 
@@ -167,47 +167,49 @@ def plot_ppar(self,spec,plot_fit,log,rescale,reac,**kwargs):
 		#x_val_plot = np.linspace(spec['x_centers'][0],spec['x_centers'][-1],1000)*scale
 		x_val_plot 	= np.linspace(1.05*fit_range[0]-0.05*fit_range[1],
 					      1.05*fit_range[1]-0.05*fit_range[0],
-					      1000)*scale
+					      1000)
+
+		x_val_shift	= x_val_plot - fit_res[-2]
 
 		if len(fit_res) == 3:
 
 			y_val_plot 	= gaussian(x_val_plot,*fit_res)
 
 			#shifted fit (centered at p-p0=0 for NSCL or p=0 for RIBF)
-			y_val_shift 	= gaussian(x_val_plot+fit_res[-2],*fit_res)
+			#y_val_shift 	= gaussian(x_val_plot,*fit_res)
 
 		elif len(fit_res) == 4:
 
 			y_val_plot 	= right(x_val_plot,*fit_res)
 
 			#shifted fit (centered at p-p0=0 for NSCL or p=0 for RIBF)
-			y_val_shift 	= right(x_val_plot+fit_res[-2],*fit_res)
+			#y_val_shift 	= right(x_val_plot,*fit_res)
 
 		elif len(fit_res) == 7:
 
 			y_val_plot 	= piecewise(x_val_plot,False,fit_res)
 
 			#shifted fit (centered at p-p0=0 for NSCL or p=0 for RIBF)
-			y_val_shift 	= piecewise(x_val_plot+fit_res[-2],False,fit_res)
+			#y_val_shift 	= piecewise(x_val_plot,False,fit_res)
 
 		elif len(fit_res) == 10:
 
 			y_val_plot 	= piecewise(x_val_plot,True,fit_res)
 
 			#shifted fit (centered at p-p0=0 for NSCL or p=0 for RIBF)
-			y_val_shift 	= piecewise(x_val_plot+fit_res[-2],True,fit_res)
+			#y_val_shift 	= piecewise(x_val_plot,True,fit_res)
 
-		ax.plot(x_val_plot,
+		ax.plot(x_val_plot*scale,
 			y_val_plot,
 			linestyle='-',
-			color='forestgreen',
+			color='orange',
 			label='Fit spectrum'
 			)
 		
-		ax.plot(x_val_plot,
-			y_val_shift,
+		ax.plot(x_val_shift*scale,
+			y_val_plot,
 			linestyle='--',
-			color='forestgreen',
+			color='orange',
 			label='Fit shifted'
 			)
 
@@ -236,6 +238,7 @@ def plot_ppar(self,spec,plot_fit,log,rescale,reac,**kwargs):
 	#legend only when plot labels are present
 	if ax.get_legend_handles_labels() != ([],[]):
 		plt.legend(loc='upper right',fontsize=16)
+	
 	try:
 		plt.savefig(kwargs['save'])
 
@@ -368,8 +371,8 @@ def plot_mode(self,spec,plot_theory,log,rescale,show_region,**kwargs):
 	'''Plot experimental exclusive momentum distributions with fit if available.'''
 
 	#Convert p to GeV/c
-	scale = 1e-3 if rescale else 1
-	label = kwargs['label'] if 'label' in kwargs else ['Experiment','Theory']
+	x_scale = 1e-3 if rescale else 1
+	label 	= kwargs['label'] if 'label' in kwargs else ['Experiment','Theory']
 
 	fig,ax = plt.subplots(figsize=(10,4))
 	fig.subplots_adjust(bottom=0.2)
@@ -392,7 +395,7 @@ def plot_mode(self,spec,plot_theory,log,rescale,show_region,**kwargs):
 	ind = spec.ind_nonzero
 	err = np.abs(spec.sc_interval[ind].T-spec.mode[ind])
 
-	ax.errorbar(spec.centers[ind]*scale,
+	ax.errorbar(spec.centers[ind]*x_scale,
 		    spec.mode[ind],
 		    yerr=err,
 		    linestyle='',
@@ -422,17 +425,17 @@ def plot_mode(self,spec,plot_theory,log,rescale,show_region,**kwargs):
 		#apply scaling factor for agreement with experimental data
 		y_val_plot 	= y_val_plot*self.fit_res[0]#*self.params['rebin']
 
-		ax.plot(x_val_plot*scale,
+		ax.plot(x_val_plot*x_scale,
 			y_val_plot,
 			linestyle='-',
-			color='forestgreen',
+			color='orange',
 			label=label[1]
 			)
 
 		#fit range if requested and fitted
 		if show_region and len(self.fit_res) > 1:
 
-			ax.axvspan(self.fit_range[0]*scale,self.fit_range[1]*scale,
+			ax.axvspan(self.fit_range[0]*x_scale,self.fit_range[1]*x_scale,
 					alpha=0.25,color='grey')
 
 	except (NameError,AttributeError) as error:
@@ -445,10 +448,11 @@ def plot_mode(self,spec,plot_theory,log,rescale,show_region,**kwargs):
 	for key in kwargs:
 
 		if key == 'xlim':
-			ax.set_xlim(np.min(kwargs['xlim'])*scale,np.max(kwargs['xlim'])*scale)
+			ax.set_xlim(np.min(kwargs['xlim'])*x_scale,np.max(kwargs['xlim'])*x_scale)
 		elif key == 'ylim':
 			ax.set_ylim(np.min(kwargs['ylim']),np.max(kwargs['ylim']))
 
+	#possibility to change the x label
 	try:
 		ax.set_xlabel(kwargs['xlabel'],fontsize=16)
 
@@ -459,7 +463,7 @@ def plot_mode(self,spec,plot_theory,log,rescale,show_region,**kwargs):
 		else:
 			ax.set_xlabel(r'$p_{\parallel}$ (MeV/c)',fontsize=16)
 
-	ax.set_ylabel('Events per bin',fontsize=16)
+	ax.set_ylabel('Events',fontsize=16)
 
 	ax.tick_params(axis='both',which='major',labelsize=16)
 
