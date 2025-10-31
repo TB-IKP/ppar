@@ -23,9 +23,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from matplotlib.pyplot import Figure,Axes
+from matplotlib.ticker import MaxNLocator,LinearLocator
+from scipy.optimize import fmin
 
 from .spectrum import spectrum,eval_spec
-from .utils import name_nucl,gaussian,right,piecewise
+from .utils import name_nucl#,gaussian,right,piecewise
 
 #---------------------------------------------------------------------------------------#
 #		Settings
@@ -159,9 +161,11 @@ def plot_ppar(self,spec,plot_fit,log,rescale,reac,**kwargs):
 		#check if reacted or unreacted
 		if reac:
 			fit_range 	= self.fit_range_reac
+			fit_func	= self.fit_func_reac
 			fit_res		= self.fit_res_reac.x
 		else:
 			fit_range 	= self.fit_range_unreac
+			fit_func	= self.fit_func_unreac
 			fit_res		= self.fit_res_unreac.x
 
 		#x_val_plot = np.linspace(spec['x_centers'][0],spec['x_centers'][-1],1000)*scale
@@ -169,35 +173,10 @@ def plot_ppar(self,spec,plot_fit,log,rescale,reac,**kwargs):
 					      1.05*fit_range[1]-0.05*fit_range[0],
 					      1000)
 
-		x_val_shift	= x_val_plot - fit_res[-2]
-
-		if len(fit_res) == 3:
-
-			y_val_plot 	= gaussian(x_val_plot,*fit_res)
-
-			#shifted fit (centered at p-p0=0 for NSCL or p=0 for RIBF)
-			#y_val_shift 	= gaussian(x_val_plot,*fit_res)
-
-		elif len(fit_res) == 4:
-
-			y_val_plot 	= right(x_val_plot,*fit_res)
-
-			#shifted fit (centered at p-p0=0 for NSCL or p=0 for RIBF)
-			#y_val_shift 	= right(x_val_plot,*fit_res)
-
-		elif len(fit_res) == 7:
-
-			y_val_plot 	= piecewise(x_val_plot,False,fit_res)
-
-			#shifted fit (centered at p-p0=0 for NSCL or p=0 for RIBF)
-			#y_val_shift 	= piecewise(x_val_plot,False,fit_res)
-
-		elif len(fit_res) == 10:
-
-			y_val_plot 	= piecewise(x_val_plot,True,fit_res)
-
-			#shifted fit (centered at p-p0=0 for NSCL or p=0 for RIBF)
-			#y_val_shift 	= piecewise(x_val_plot,True,fit_res)
+		x_val_0		= fmin(lambda x: -fit_func(x,*fit_res),0,disp=0)
+		#x_val_shift	= x_val_plot - fit_res[-2]
+		x_val_shift	= x_val_plot - x_val_0
+		y_val_plot	= fit_func(x_val_plot,*fit_res)
 
 		ax.plot(x_val_plot*scale,
 			y_val_plot,
@@ -220,12 +199,29 @@ def plot_ppar(self,spec,plot_fit,log,rescale,reac,**kwargs):
 	except (NameError,AttributeError) as error:
 		pass
 
+	#change style of y ticks to scientific
+	ax.ticklabel_format(axis='y',style='sci',scilimits=(0,2))
+	ax.yaxis.get_offset_text().set_visible(False)
+
+	fig.canvas.draw()
+
+	exponent = ax.yaxis.get_major_formatter().orderOfMagnitude
+	
+	if exponent > 1:
+		ax.set_ylabel(r'Events ($10^{%i}$)'% exponent, fontsize=16)
+	else:
+		ax.set_ylabel(r'Events', fontsize=16)
+
 	#set ylim in case fit goes wrong
+	#make sure the y axis ends with a tick
 	#can be overwritten by kwargs
 	try:
 		ax.set_ylim(np.min(kwargs['ylim']),np.max(kwargs['ylim']))
+	
 	except KeyError:
-		ax.set_ylim(ylim[0],ylim[1])
+		
+		ylim_scale = 10**exponent*np.ceil((ylim[1]/10**exponent))
+		ax.set_ylim(ylim[0],ylim_scale)
 
 	#x label has to be treated here to distinguish between NSCL and RIBF data
 	unit = '(GeV/c)' if rescale else '(MeV/c)'
@@ -444,6 +440,26 @@ def plot_mode(self,spec,plot_theory,log,rescale,show_region,**kwargs):
 	if log:
 		ax.set_yscale('log')
 
+	#change style of y ticks to scientific
+	ax.ticklabel_format(axis='y',style='sci',scilimits=(0,2))
+	ax.yaxis.get_offset_text().set_visible(False)
+
+	fig.canvas.draw()
+
+	exponent = ax.yaxis.get_major_formatter().orderOfMagnitude
+
+	if exponent > 1:
+		ax.set_ylabel(r'Events ($10^{%i}$)'% exponent, fontsize=16)
+	else:
+		ax.set_ylabel(r'Events', fontsize=16)
+
+	ax.tick_params(axis='both',which='major',labelsize=16)
+
+	#set y limits, can be overwritten with kwargs
+	ylim = ax.get_ylim()
+	ylim_scale = 10**exponent*np.ceil((ylim[1]/10**exponent))
+	ax.set_ylim(0,ylim_scale)
+
 	#plot limits from kwargs
 	for key in kwargs:
 
@@ -462,10 +478,6 @@ def plot_mode(self,spec,plot_theory,log,rescale,show_region,**kwargs):
 			ax.set_xlabel(r'$p_{\parallel}$ (GeV/c)',fontsize=16)
 		else:
 			ax.set_xlabel(r'$p_{\parallel}$ (MeV/c)',fontsize=16)
-
-	ax.set_ylabel('Events',fontsize=16)
-
-	ax.tick_params(axis='both',which='major',labelsize=16)
 
 	#if 'label' in kwargs:
 

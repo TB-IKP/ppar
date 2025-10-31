@@ -22,3 +22,4 @@ from .ppar_RIBF import ppar_RIBF
 from .state import state
 from .spectrum import spectrum
 from .utils import name_nucl
+from .utils import gaussian,skewed_gaussian,two_erf,exp,exp_gaussian

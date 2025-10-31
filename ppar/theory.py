@@ -22,10 +22,7 @@
 import numpy as np
 
 from scipy.interpolate import interp1d
-from scipy.optimize import minimize
-
-from .spectrum import piecewise
-from .utils import gaussian,right
+from scipy.optimize import minimize,fmin
 
 #---------------------------------------------------------------------------------------#
 #		theo class
@@ -54,11 +51,11 @@ def load_theo(file_name):
 	'''
 	Load theoretical momentum distribution from file.
 
-	Args:
-		file_name (str):	file with theory
+	:param file_name:
+		file with theory
 
-	Returns:
-		theo (obj):		theo object
+	:returns theo:
+		theo object
 	'''
 
 	ppar_theo = np.loadtxt(file_name)
@@ -77,7 +74,7 @@ def filter_p(x,limits):
 
 	return mask
 
-def convolve_theo(ppar_theo,boost,p_range,fit_res,params,**kwargs):
+def convolve_theo(ppar_theo,boost,p_range,fit_func,fit_res,params,**kwargs):
 	'''Convolution of theoretical momentum distributions with 
 	rectangular function for uncertainty of reaction position
 	and unreacted beam profile. Boost to lab frame for NSCL data.'''
@@ -104,14 +101,9 @@ def convolve_theo(ppar_theo,boost,p_range,fit_res,params,**kwargs):
 
 	#include shape of unreacted momentum distribution (p_par-p_par,0)
 	#with the correction which centers it around 0
-	if len(fit_res.x) == 3:
-		val_unreacted	= gaussian(p_sized+fit_res.x[-2],*fit_res.x)
-	elif len(fit_res.x) == 4:
-		val_unreacted	= right(p_sized+fit_res.x[-2],*fit_res.x)
-	elif len(fit_res.x) == 7:
-		val_unreacted	= piecewise(p_sized+fit_res.x[-2],False,fit_res.x)
-	else:
-		val_unreacted	= piecewise(p_sized+fit_res.x[-2],True,fit_res.x)
+	#shift histogram numerically (needed for skewed Gaussian)
+	p0				= fmin(lambda x: -fit_func(x,*fit_res.x),0,disp=0)
+	val_unreacted			= fit_func(p_sized+p0,*fit_res.x)
 
 	values_tail 			= np.convolve(values,val_unreacted,mode='valid')
 

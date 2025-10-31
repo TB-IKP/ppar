@@ -20,17 +20,18 @@
 '''ppar class definition for NSCL/FRIB data'''
 
 from os import path
+from typing import Callable
 
 import numpy as np
 
 from scipy.optimize import OptimizeResult
 from matplotlib.pyplot import Figure,Axes
 
-from .spectrum import spectrum,fit_spec
+from .spectrum import spectrum,fit_spec,func_minimize
 from .plots import plot_ppar,plot_stop
 from .kinematics import kinematics_reaction,stopping_target_fw,momentum_range_fw
 from .kinematics import stopping_target_bw,momentum_range_bw,correct_kinematics
-from .utils import mg_cm2_to_um,atomic_mass_to_ion_mass,extract_Brho
+from .utils import mg_cm2_to_um,atomic_mass_to_ion_mass,extract_Brho,gaussian
 from .messages import header_message,start_message,nucl_message,kinematics_message
 
 #---------------------------------------------------------------------------------------#
@@ -40,7 +41,9 @@ from .messages import header_message,start_message,nucl_message,kinematics_messa
 class ppar_NSCL:
 	'''Class for analysis of parallel momentum distributions from NSCL/FRIB data.'''
 
-	def __init__(self,beam: dict,target: dict,product: dict,Brho_reac: str|dict,Brho_unreac: str|dict,verbose: bool=True):
+	def __init__(self,beam: dict,target: dict,product: dict,
+			Brho_reac: str|dict,Brho_unreac: str|dict,
+			verbose: bool=True):
 		'''
 		Create ppar instance for NSCL data.
 
@@ -169,9 +172,12 @@ class ppar_NSCL:
 		Calculate stopping in the target using Atima.
 
 		:param threshold:
-			termination criterion for stopping calculation
+			termination criterion for stopping calculation,
+			default 5
 		:param method:
-			``fw`` (from BTS33) or ``bw`` (from BTS34) calculation of stopping
+			``fw`` (from BTS33) or ``bw`` (from BTS34) 
+			calculation of stopping,
+			default ``bw``
 		'''
 
 		#threshold
@@ -242,15 +248,6 @@ class ppar_NSCL:
 		if rebin > 1:
 			self.spec_unreac.rebin(rebin,overwrite=True)
 
-		#self.spec_unreac	= prepare_spec(file,histogram,self.kin_reac,
-			#					self.beam,self.product)
-		#self.spec_unreac  	= load_file(file,hist)
-		#self.rebin_unreac 	= rebin_spec(self.spec_unreac,rebin)
-
-		#add identifiers
-		#self.spec_unreac['reac']	= False
-		#self.rebin_unreac['reac']	= False
-
 	def load_reacted(self,file: str,hist: str,rebin: int=1):
 		'''
 		Load the experimental histogram of reaction setting and extract data.
@@ -278,25 +275,22 @@ class ppar_NSCL:
 		if rebin > 1:
 			self.spec_reac.rebin(rebin,overwrite=True)
 
-		#self.spec_reac  	= load_file(file,hist)
-		#self.rebin_reac 	= rebin_spec(self.spec_reac,rebin)
-
-		#add identifiers
-		#self.spec_unreac['reac']	= True
-		#self.rebin_unreac['reac']	= True
-
-	def fit_unreacted(self,fit_range: list[int],x0: list[float]) -> OptimizeResult:
+	def fit_unreacted(self,fit_range: list[int],x0: list[float]=[1e6,0,100],
+				func: Callable=gaussian, minimizer: Callable=func_minimize) -> OptimizeResult:
 		'''
 		Fit the experimental histogram of unreacted beam to extract its functional shape.
 
 		:param fit_range:	
 			range for spectrum fit
 		:param x0:
-			initial parameter guess, length specifies fit function
-			3 	Gaussian
-			4 	two erf functions
-			7 	two erf functions with exponential tail
-			10 	two erf functions with exponential tail and Gaussian
+			initial parameter guess,
+			default 1e6,0,100]
+		:param func:
+			externally defined fit function, 
+			default gaussian
+		:param minimizer:
+			externally defined minimizer for fit,
+			default ||y-f(x)||_2
 
 		:return fit_res_unreac:
 			fit result
@@ -311,17 +305,30 @@ class ppar_NSCL:
 			raise ValueError('fit_range must be a list of length two!')
 
 		#x0
-		if not isinstance(fit_range,(list,np.ndarray)):
+		if not isinstance(x0,(list,np.ndarray)):
 
 			raise ValueError('x0 must be a list containing the start parameters!')
 
-		if len(x0) not in [3,4,7,10]:
+		#func
+		if callable(func):
 
-			raise ValueError('x0 must be list of length three for a Gaussian fit, \
-				four for two error functions, seven for an exponential tail, \
-				and ten for a combination of exponential and Gaussian tail!')
+			print(f'Using fit function {func.__name__}.')
 
-		self.fit_res_unreac 		= fit_spec(self.spec_unreac,self.fit_range_unreac,x0)
+			self.fit_func_unreac 	= func
+
+		else:
+			raise ValueError('func must be callable!')
+
+		#minimizer
+		if callable(minimizer):
+
+			print(f'Using minimizer {minimizer.__name__}.')
+
+		else:
+			raise ValueError('minimizer must be callable!')
+
+		self.fit_res_unreac 		= fit_spec(self.spec_unreac,self.fit_range_unreac,
+								x0,self.fit_func_unreac,minimizer)
 
 		#correct kinematics unreacted run
 		self.kin_unreac['after'] 	= correct_kinematics(self.kin_unreac['after']['p'],
@@ -329,18 +336,22 @@ class ppar_NSCL:
 
 		return self.fit_res_unreac
 
-	def fit_reacted(self,fit_range: list[int],x0: list[float]) -> OptimizeResult:
+	def fit_reacted(self,fit_range: list[int],x0: list[float]=[1e6,0,100],
+				func: Callable=gaussian, minimizer: Callable=func_minimize) -> OptimizeResult:
 		'''
 		Fit the experimental histogram from reaction setting to extract its functional shape.
 
 		:param fit_range:	
 			range for spectrum fit
 		:param x0:
-			initial parameter guess, length specifies fit function
-			3 	Gaussian
-			4 	two erf functions
-			7 	two erf functions with exponential tail
-			10 	two erf functions with exponential tail and Gaussian
+			initial parameter guess,
+			default 1e6,0,100]
+		:param func:
+			externally defined fit function, 
+			default gaussian
+		:param minimizer:
+			externally defined minimizer for fit,
+			default ||y-f(x)||_2
 
 		:return fit_res_reac:
 			fit result
@@ -354,13 +365,31 @@ class ppar_NSCL:
 		else:
 			raise ValueError('fit_range must be a list of length two!')
 
-		if len(x0) not in [3,4,7,10]:
+		#x0
+		if not isinstance(x0,(list,np.ndarray)):
 
-			raise ValueError('x0 must be list of length three for a Gaussian fit, \
-				four for two error functions, seven for an exponential tail, \
-				and ten for a combination of exponential and Gaussian tail!')
+			raise ValueError('x0 must be a list containing the start parameters!')
 
-		self.fit_res_reac 		= fit_spec(self.spec_reac,self.fit_range_reac,x0)
+		#func
+		if callable(func):
+
+			print(f'Using fit function {func.__name__}.')
+
+			self.fit_func_reac 	= func
+
+		else:
+			raise ValueError('func must be callable!')
+
+		#minimizer
+		if callable(minimizer):
+
+			print(f'Using minimizer {minimizer.__name__}.')
+
+		else:
+			raise ValueError('minimizer must be callable!')
+
+		self.fit_res_reac 		= fit_spec(self.spec_reac,self.fit_range_reac,
+								x0,self.fit_func_reac,minimizer)
 
 		#correct kinematics unreacted run
 		self.kin_reac['after'] 		= correct_kinematics(self.kin_reac['after']['p'],
@@ -368,7 +397,8 @@ class ppar_NSCL:
 
 		return self.fit_res_reac
 
-	def plot_unreacted(self,rebin: bool=True,plot_fit: bool=True,log: bool=False,rescale: bool=False,**kwargs) -> tuple[Figure,Axes]:
+	def plot_unreacted(self,rebin: bool=True,plot_fit: bool=True,log: bool=False,
+				rescale: bool=False,**kwargs) -> tuple[Figure,Axes]:
 		'''
 		Plot the experimental momentum distribution with fit if available.
 

@@ -25,7 +25,7 @@ import numpy as np
 
 from scipy.special import erfc
 from scipy.constants import physical_constants
-from scipy.stats import gaussian_kde
+from scipy.stats import gaussian_kde,norm
 from scipy.optimize import minimize
 
 #---------------------------------------------------------------------------------------#
@@ -75,15 +75,34 @@ def piecewise(x,gauss,params):
 	return value
 
 def gaussian(x,*args):
-	'''Gaussian for histogram fit.'''
+	'''Gaussian for histogram fit.
+
+	:param args:
+		(area, mean, sigma)
+	'''
 
 	return args[0]/np.sqrt(2*np.pi)/args[2]*np.exp(-(x-args[1])**2/(2*args[2]**2))
+
+def skewed_gaussian(x,*args):
+	'''Skewed Gaussian for histogram fit.
+
+	:param args:
+		(area, scale, x0, skewness)
+	'''
+
+	t = (x-args[2])/args[1]
+
+	return (2*args[0]/args[1])*norm.pdf(t)*norm.cdf(args[3]*t)
 
 def exp(x,*args):
 	'''Exponential function for histogram fit.'''
 
 	return args[0]*np.exp(args[1]*x)
 	#return args[0]*np.exp(args[1]*(x-args[2]))
+
+def exp_gaussian(x,*args):
+
+	return exp(x,*args[:2]) + gaussian(x,*args[2:])
 
 def left(x,gauss,*args):
 	'''Tail function for histogram fit.'''
@@ -98,6 +117,10 @@ def right(x,*args):
 
 	return 0.5*args[0]*(erfc((x-args[2]-0.5*args[1])/(2*args[3]**2))-\
 			    erfc((x-args[2]+0.5*args[1])/(2*args[3]**2)))
+
+def two_erf(x,*args):
+
+	return right(x,*args)
 
 #---------------------------------------------------------------------------------------#
 #	NSCL:	Extract Brho from Barney file

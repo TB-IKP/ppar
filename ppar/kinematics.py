@@ -20,7 +20,6 @@
 '''Stopping in target and kinematics'''
 
 import numpy as np
-#import PyAtima as pa
 
 from scipy.constants import physical_constants
 from scipy.interpolate import interp1d

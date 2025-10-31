@@ -82,6 +82,7 @@ class state():
 		self.ppar_theo 	= convolve_theo(self.ppar_theo,
 						boost,
 						self.ppar_exp.p_range,
+						self.ppar_exp.fit_func_unreac,
 						self.ppar_exp.fit_res_unreac,
 						self.ppar_exp.params,
 						**kwargs
@@ -132,7 +133,8 @@ class state():
 
 		#shift spectrum horizontally
 		try:
-			self.spec	= shift_spec(spec,self.ppar_exp.fit_res_reac)
+			self.spec	= shift_spec(spec,self.ppar_exp.fit_res_reac,
+						self.ppar_exp.fit_func_reac)
 
 		except AttributeError:
 			self.spec	= spec

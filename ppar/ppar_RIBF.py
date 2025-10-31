@@ -20,15 +20,16 @@
 '''ppar class definition for RIBF data'''
 
 from os import path
+from typing import Callable
 
 import numpy as np
 
 from scipy.optimize import OptimizeResult
 from matplotlib.pyplot import Figure,Axes
 
-from .spectrum import spectrum,fit_spec
+from .spectrum import spectrum,fit_spec,func_minimize
 from .plots import plot_ppar
-from .utils import mg_cm2_to_um,atomic_mass_to_ion_mass
+from .utils import mg_cm2_to_um,atomic_mass_to_ion_mass,gaussian
 from .messages import start_message,nucl_message
 
 #---------------------------------------------------------------------------------------#
@@ -217,18 +218,22 @@ class ppar_RIBF():
 		if rebin > 1:
 			self.spec_reac.rebin(rebin,overwrite=True)
 
-	def fit_unreacted(self,fit_range: list[int],x0: list[float]) -> OptimizeResult:
+	def fit_unreacted(self,fit_range: list[int],x0: list[float]=[1e6,0,100],
+				func: Callable=gaussian, minimizer: Callable=func_minimize) -> OptimizeResult:
 		'''
 		Fit the experimental histogram of unreacted beam to extract its functional shape.
 
 		:param fit_range:	
 			range for spectrum fit
 		:param x0:
-			initial parameter guess, length specifies fit function
-			3 	Gaussian
-			4 	two erf functions
-			7 	two erf functions with exponential tail
-			10 	two erf functions with exponential tail and Gaussian
+			initial parameter guess,
+			default 1e6,0,100]
+		:param func:
+			externally defined fit function, 
+			default gaussian
+		:param minimizer:
+			externally defined minimizer for fit,
+			default ||y-f(x)||_2
 
 		:return fit_res_unreac:
 			fit result
@@ -243,19 +248,30 @@ class ppar_RIBF():
 			raise ValueError('fit_range must be a list of length two!')
 
 		#x0
-		#if not isinstance(fit_range,(list,np.ndarray)) or len(x0) != 4:
+		if not isinstance(x0,(list,np.ndarray)):
 
-		#	raise ValueError('x0 must be a list of length four containing the start parameters!')
+			raise ValueError('x0 must be a list containing the start parameters!')
 
-		if len(x0) not in [3,4,7,10]:
+		#func
+		if callable(func):
 
-			raise ValueError('x0 must be list of length three for a Gaussian fit, \
-				four for two error functions, seven for an exponential tail, \
-				and ten for a combination of exponential and Gaussian tail!')
+			print(f'Using fit function {func.__name__}.')
 
-		#self.fit_res_unreac 		= fit_peak(self.rebin_unreac,self.fit_range_unreac,x0)
-		#self.fit_res_unreac 		= fit_spec(self.rebin_unreac,self.fit_range_unreac,x0)
-		self.fit_res_unreac 		= fit_spec(self.spec_unreac,self.fit_range_unreac,x0)
+			self.fit_func_unreac 	= func
+
+		else:
+			raise ValueError('func must be callable!')
+
+		#minimizer
+		if callable(minimizer):
+
+			print(f'Using minimizer {minimizer.__name__}.')
+
+		else:
+			raise ValueError('minimizer must be callable!')
+		
+		self.fit_res_unreac 		= fit_spec(self.spec_unreac,self.fit_range_unreac,
+								x0,self.fit_func_unreac,minimizer)
 
 		#correct kinematics unreacted run
 		#self.kin_unreac['after'] 	= correct_kinematics(self.kin_unreac['after']['p'],
@@ -263,18 +279,22 @@ class ppar_RIBF():
 
 		return self.fit_res_unreac
 
-	def fit_reacted(self,fit_range: list[int],x0: list[float]) -> OptimizeResult:
+	def fit_reacted(self,fit_range: list[int],x0: list[float]=[1e6,0,100],
+				func: Callable=gaussian, minimizer: Callable=func_minimize) -> OptimizeResult:
 		'''
 		Fit the experimental histogram from reaction setting to extract its functional shape.
 
 		:param fit_range:	
 			range for spectrum fit
 		:param x0:
-			initial parameter guess, length specifies fit function
-			3 	Gaussian
-			4 	two erf functions
-			7 	two erf functions with exponential tail
-			10 	two erf functions with exponential tail and Gaussian
+			initial parameter guess,
+			default 1e6,0,100]
+		:param func:
+			externally defined fit function, 
+			default gaussian
+		:param minimizer:
+			externally defined minimizer for fit,
+			default ||y-f(x)||_2
 
 		:return fit_res_reac:
 			fit result
@@ -289,19 +309,30 @@ class ppar_RIBF():
 			raise ValueError('fit_range must be a list of length two!')
 
 		#x0
-		#if not isinstance(fit_range,(list,np.ndarray)) or len(x0) != 4:
+		if not isinstance(x0,(list,np.ndarray)):
 
-		#	raise ValueError('x0 must be a list of length four containing the start parameters!')
+			raise ValueError('x0 must be a list containing the start parameters!')
 
-		if len(x0) not in [3,4,7,10]:
+		#func
+		if callable(func):
 
-			raise ValueError('x0 must be list of length three for a Gaussian fit, \
-				four for two error functions, seven for an exponential tail, \
-				and ten for a combination of exponential and Gaussian tail!')
+			print(f'Using fit function {func.__name__}.')
 
-		#self.fit_res_reac 		= fit_peak(self.rebin_reac,self.fit_range_reac,x0)
-		#self.fit_res_reac 		= fit_spec(self.rebin_reac,self.fit_range_reac,x0)
-		self.fit_res_reac 		= fit_spec(self.spec_reac,self.fit_range_reac,x0)
+			self.fit_func_reac 	= func
+
+		else:
+			raise ValueError('func must be callable!')
+
+		#minimizer
+		if callable(minimizer):
+
+			print(f'Using minimizer {minimizer.__name__}.')
+
+		else:
+			raise ValueError('minimizer must be callable!')
+
+		self.fit_res_reac 		= fit_spec(self.spec_reac,self.fit_range_reac,
+								x0,self.fit_func_reac,minimizer)
 
 		#correct kinematics unreacted run
 		#self.kin_reac['after'] 	= correct_kinematics(self.kin_reac['after']['p'],

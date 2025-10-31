@@ -27,11 +27,11 @@ import uproot
 import numpy as np
 
 from numpy.random import poisson
-from scipy.optimize import minimize
+from scipy.optimize import minimize,fmin
 from matplotlib.pyplot import Figure,Axes
-#from scipy.stats import norm
 
-from .utils import gaussian,left,right,piecewise,calc_mode,calc_sc
+#from .utils import gaussian,left,right,piecewise
+from .utils import calc_mode,calc_sc
 
 #---------------------------------------------------------------------------------------#
 #		spectrum class
@@ -184,12 +184,17 @@ def prepare_spec(file_name,hist_name,kinematics,beam,product):
 #		Shift histogram horizontally
 #---------------------------------------------------------------------------------------#
 
-def shift_spec(spec,params):
+def shift_spec(spec,params,func):
 
 	spec_shifted = deepcopy(spec)
 
-	spec_shifted.centers -= params.x[-2]
-	spec_shifted.edges   -= params.x[-2]
+	shift = fmin(lambda x: -func(x,*params.x),0,disp=0)
+
+	spec_shifted.centers -= shift
+	spec_shifted.edges   -= shift
+
+	#spec_shifted.centers -= params.x[-2]
+	#spec_shifted.edges   -= params.x[-2]
 
 	return spec_shifted
 
@@ -261,52 +266,84 @@ def eval_spec(centers,edges,values,threshold):
 #		Fit histogram
 #---------------------------------------------------------------------------------------#
 
-def piecewise_minimize(params,x,y,gauss):
-	'''Fit residuals of piecewise function with penalty term for continuity.'''
+# def fit_func(x):
+# 	'''Compose the fit function for the 
+# 	experimental momentum distributions.'''
 
-	#args[0] = switch
+# 	#Gaussian
+# 	if len(x0) == 3:
 
-	#left
-	#args[1] = exp1
-	#args[2] = exp2
-	#args[3] = area
-	#args[4] = mean
-	#args[5] = sigma
+# 		return gaussian
 
-	#right
-	#args[6] = height
-	#args[7] = width
-	#args[8] = center
-	#args[9] = sigma
+# 	#two erf functions
+# 	elif len(x0) == 4:
 
-	#add a shift in index
-	shift = 3 if gauss else 0
+# 		return right
 
-	fit 		= piecewise(x,gauss,params)
+# 	#Gaussian with exponential tail
+# 	elif len(x0) == 5:
 
-	residuals 	= np.linalg.norm(y-fit)
-	penalty   	= np.linalg.norm(left(params[0],gauss,*params[1:3+shift])-\
-				   	 right(params[0],*params[3+shift:]))
+# 		return 
 
-	return residuals + penalty
+# 	#two erf functions with exponential tail
+# 	#with (10) and without (7) Gaussian
+# 	else:
+# 		return piecewise
 
-def right_minimize(params,x,y):
-	'''Fit residuals of asymmetric peak.'''
+# def piecewise_minimize(params,x,y,gauss):
+# 	'''Fit residuals of piecewise function with penalty term for continuity.'''
 
-	fit		= right(x,*params)
+# 	#args[0] = switch
+
+# 	#left
+# 	#args[1] = exp1
+# 	#args[2] = exp2
+# 	#args[3] = area
+# 	#args[4] = mean
+# 	#args[5] = sigma
+
+# 	#right
+# 	#args[6] = height
+# 	#args[7] = width
+# 	#args[8] = center
+# 	#args[9] = sigma
+
+# 	#add a shift in index
+# 	shift = 3 if gauss else 0
+
+# 	fit 		= piecewise(x,gauss,params)
+
+# 	residuals 	= np.linalg.norm(y-fit)
+# 	penalty   	= np.linalg.norm(left(params[0],gauss,*params[1:3+shift])-\
+# 				   	 right(params[0],*params[3+shift:]))
+
+# 	return residuals + penalty
+
+# def right_minimize(params,x,y):
+# 	'''Fit residuals of asymmetric peak.'''
+
+# 	fit		= right(x,*params)
+# 	residuals 	= np.linalg.norm(y-fit)
+
+# 	return residuals
+
+# def gaussian_minimize(params,x,y):
+# 	'''Fit residuals of Gaussian peak.'''
+
+# 	fit		= gaussian(x,*params)
+# 	residuals 	= np.linalg.norm(y-fit)
+
+# 	return residuals
+
+def func_minimize(params,x,y,func):
+	'''Fit residuals for supplied function.'''
+
+	fit 		= func(x,*params)
 	residuals 	= np.linalg.norm(y-fit)
 
 	return residuals
 
-def gaussian_minimize(params,x,y):
-	'''Fit residuals of Gaussian peak.'''
-
-	fit		= gaussian(x,*params)
-	residuals 	= np.linalg.norm(y-fit)
-
-	return residuals
-
-def fit_spec(spec,fit_range,x0):
+def fit_spec(spec,fit_range,x0,func,minimizer):
 	'''Fit of experimental momentum distributions with low-momentum tail.'''
 
 	mask  	= (spec.centers >= fit_range[0])*\
@@ -315,35 +352,10 @@ def fit_spec(spec,fit_range,x0):
 	x_val 	= spec.centers[mask]
 	y_val 	= spec.values[mask]
 
-	#opt_res_min 	= minimize(piecewise_minimize,
-	#			args=(x_val,y_val,gauss),
-	#			x0=x0,
-	#			method='Nelder-Mead',
-	#			options={'maxiter':10000})
-
-	if len(x0) == 3:
-		opt_res_min 	= minimize(gaussian_minimize,
-						args=(x_val,y_val),
-						x0=x0,
-						method='Nelder-Mead',
-						options={'maxiter':10000})
-	elif len(x0) == 4:
-		opt_res_min 	= minimize(right_minimize,
-						args=(x_val,y_val),
-						x0=x0,
-						method='Nelder-Mead',
-						options={'maxiter':10000})
-	elif len(x0) == 7:
-		opt_res_min 	= minimize(piecewise_minimize,
-						args=(x_val,y_val,False),
-						x0=x0,
-						method='Nelder-Mead',
-						options={'maxiter':10000})
-	else:
-		opt_res_min 	= minimize(piecewise_minimize,
-						args=(x_val,y_val,True),
-						x0=x0,
-						method='Nelder-Mead',
-						options={'maxiter':10000})
+	opt_res_min 	= minimize(minimizer,
+				args=(x_val,y_val,func),
+				x0=x0,
+				method='Nelder-Mead',
+				options={'maxiter':10000})
 
 	return opt_res_min
