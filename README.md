@@ -33,4 +33,4 @@ in the command line.
 ## Usage
 
 Minimal examples can be found in the [example](example) directory.
-The data files can be requested from Tobias Beck (beck@frib.msu.edu).
+The data files can be requested from Tobias Beck (tobias.beck@kuleuven.be).
